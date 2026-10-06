@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "robloxstudio": {
+      "type": "http",
+      "url": "http://localhost:58741/mcp"
+    }
+  }
+}
