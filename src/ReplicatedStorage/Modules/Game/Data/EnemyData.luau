@@ -64,6 +64,8 @@ EnemyData.Shared = {
 	-- a hit for at least this fraction of max health makes a non boss enemy flinch (stop moving) for FlinchTime seconds
 	FlinchFraction = 0.08,
 	FlinchTime = 0.15,
+	-- seconds before the same enemy can flinch again, so fast hits can not stun lock it
+	FlinchCooldown = 0.7,
 	-- An enemy with no player in DetectRange does this: "Idle" stands
 	-- still, "Wander" walks to random nearby points, "Hunt" heads for
 	-- the nearest player anyway.

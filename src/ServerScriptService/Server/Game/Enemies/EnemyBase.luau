@@ -315,8 +315,10 @@ function EnemyBase:TakeDamage(Amount: number, Attacker: any, Info: any?): (numbe
 	end
 
 	-- a heavy hit staggers it for a moment (EnemyAI stops it moving), never a boss
-	if not self.Data.IsBoss and Dealt >= self.MaxHealth * (EnemyData.Shared.FlinchFraction or 1) then
-		self.FlinchUntil = os.clock() + (EnemyData.Shared.FlinchTime or 0)
+	local Now = os.clock()
+	if not self.Data.IsBoss and Dealt >= self.MaxHealth * (EnemyData.Shared.FlinchFraction or 1) and Now >= (self.NextFlinchAt or 0) then
+		self.FlinchUntil = Now + (EnemyData.Shared.FlinchTime or 0)
+		self.NextFlinchAt = Now + (EnemyData.Shared.FlinchCooldown or 0)
 	end
 
 	if type(self.OnDamaged) == "function" then
