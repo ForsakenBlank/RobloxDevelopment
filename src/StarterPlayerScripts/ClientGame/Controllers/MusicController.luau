@@ -168,13 +168,43 @@ end
 -- FOLLOWING THE RUN
 ----------------------------------------------------------------------
 
+-- Every fight track in the Music folder: the listed ones plus any Sound
+-- named Combat followed by a number (Combat5, Combat6...), so a new
+-- track only has to be dropped in.
+local function CombatTracks(): { string }
+	local List = table.clone(MusicController.Settings.CombatTracks)
+	if Folder then
+		for _, Child in ipairs(Folder:GetChildren()) do
+			if Child:IsA("Sound") and string.match(Child.Name, "^Combat%d+$") and not table.find(List, Child.Name) then
+				table.insert(List, Child.Name)
+			end
+		end
+	end
+	return List
+end
+
+-- the fight tracks in a shuffled order, so a run does not always play them the same way round
+local Order: { string } = {}
+
 local function NextCombatTrack(Area: string?): string
-	local Tracks = MusicController.Settings.CombatTracks
 	if Area ~= LastCombatArea then
 		LastCombatArea = Area
-		CombatIndex = CombatIndex % #Tracks + 1
+		CombatIndex += 1
+		if CombatIndex > #Order then
+			local Last = Order[#Order]
+			Order = CombatTracks()
+			for Index = #Order, 2, -1 do
+				local Swap = math.random(Index)
+				Order[Index], Order[Swap] = Order[Swap], Order[Index]
+			end
+			-- never the same track twice in a row across a reshuffle
+			if #Order > 1 and Order[1] == Last then
+				Order[1], Order[2] = Order[2], Order[1]
+			end
+			CombatIndex = 1
+		end
 	end
-	return Tracks[math.max(CombatIndex, 1)]
+	return Order[math.max(CombatIndex, 1)] or MusicController.Settings.CombatTracks[1]
 end
 
 local function OnRoomEntered(Info)
