@@ -125,6 +125,8 @@ RoomBannerController.Settings = {
 	VoteFormat = "Replay votes: %d / %d",
 	-- Faded when the place was not opened from the lobby.
 	NoLobbyTransparency = 0.5,
+	-- pushes the area banner and toasts down from where they sit in the editor (fraction of screen height)
+	PopupDrop = 0.04,
 }
 
 ----------------------------------------------------------------------
@@ -386,6 +388,11 @@ function RoomBannerController.Init()
 	ToastTemplate = Toasts:WaitForChild("ToastTemplate")
 	Spectate = Gui:WaitForChild("Spectate")
 	EndScreen = Gui:WaitForChild("EndScreen")
+
+	-- nudge the popups down a bit so they clear the top of the hud
+	local Drop = UDim2.fromScale(0, RoomBannerController.Settings.PopupDrop)
+	Banner.Position += Drop
+	Toasts.Position += Drop
 
 	-- Remember the designed look, then start hidden.
 	UIFade.Record(Banner)
