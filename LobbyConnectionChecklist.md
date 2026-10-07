@@ -6,7 +6,7 @@ Taken from VelocityGameConnection.md. Section 1 protects player data, so it came
 - [x] 1.1 The game's DataManager is now the lobby's (`SaveVersion`, the version wait, the double load guard) plus two fixes the lobby should copy back: a save that fails to load is never written over, and a player who leaves mid load keeps nothing
 - [x] 1.2 `LobbyLink.SendToLobby` sends `SaveVersion` after saving
 - [x] 1.3 `PlayerManager.Init` can no longer load a player twice
-- [ ] 1.4 Later, in both places at once: session locked saves (ProfileStore or `UpdateAsync` with a lock)
+- [ ] 1.4 Session locking is built into DataManager behind `SESSION_LOCK` (off). Copy this DataManager to the lobby, then set `SESSION_LOCK = true` in both places at the same time. It relies on PlayerManager calling `Save` then `Release` when a player leaves, as both places do now
 
 ## 2. One save template
 - [x] 2.1 The game's `PlayerDataTemplate` is now the lobby's
@@ -23,7 +23,7 @@ Taken from VelocityGameConnection.md. Section 1 protects player data, so it came
 - [ ] 3.9 Give the shared modules one folder in the Rojo project so both places sync from it
 
 ## 4. Gear and core stats in a run
-- [x] 4.1 `Server.Game.Core.RunStats` uses `CharacterStats.Compute` and `ForRun`. Passes are always empty for now
+- [x] 4.1 `Server.Game.Core.RunStats` uses `CharacterStats.Compute` and `ForRun`, with owned passes and the dev unlock from `PassService`
 - [x] 4.2 `MaxHealth`, `MaxEnergy` into `PlayerStats.new` overrides in `RunSetup`
 - [x] 4.3 Health and energy regen per player in `EnergyService` (plus Ruby's no regen in combat)
 - [x] 4.4 Weapon and ability damage multipliers in `DamageService`
@@ -62,7 +62,7 @@ Taken from VelocityGameConnection.md. Section 1 protects player data, so it came
 - [x] 8.3 `CoreTime`, `CoreRuns`, and `Cores[Core]` Enlightenment (1 per EXP earned, `GameConfig.Cores.EnlightenmentPerExp`)
 - [x] 8.4 `WeaponKills`, `AbilityUses`
 - [x] 8.5 `PlayTime` in seconds. Timebux is ready but off until `GameConfig.Timebux.SecondsPerTimebux` is set to the lobby's value
-- [ ] 8.6 `OwnedSkins.Noob` / `OwnedSkins.Guest` for beating the Guest in Retroscity (needs the RetroCity map and Guest boss)
+- [ ] 8.6 `OwnedSkins.Noob` / `OwnedSkins.Guest` for beating the Guest in Retroscity (the map loader is ready, needs the RetroCity map in `workspace.Maps` and the Guest boss)
 
 ## 9. Testing the whole loop
 - [ ] 9.1 Fresh save: character screen, run, back to lobby, everything kept
@@ -72,6 +72,11 @@ Taken from VelocityGameConnection.md. Section 1 protects player data, so it came
 - [ ] 9.5 Two player squad with different keys and gear
 
 ## Other
+- [x] One place for every map: `MapLoader` loads `workspace.Maps.<MapKey>` from the teleport data, `RoomData.MapAreas` and `WaveData.MapAreas` hold a map's own areas and waves
+- [x] The lobby's Settings work in runs: volumes, music and effects on or off, camera shake, moving backgrounds, core tags
+- [x] Core tags over heads in runs (gold for VIP)
+- [x] The end screen shows the gear you found and your core's Enlightenment (and level ups)
+- [ ] Skins in runs: needs the lobby's `ReplicatedStorage.Assets.Models.Characters` and its CharacterService
 - [x] Quitting the game mid run now pays out like a loss (it used to save nothing)
 - [x] `RunSetup.DataLoadTimeout` raised from 10 to 20 seconds so the version wait cannot run past it
 - [x] Move the area banner and toasts down a little (`RoomBannerController.Settings.PopupDrop`)

@@ -69,6 +69,19 @@ local MAX_ATTEMPTS = 3
 local VERSION_TRIES = 8
 local VERSION_DELAY = 1.5
 
+-- Session locking: while a server has a player's save it stamps it with
+-- its JobId (SessionLock), and no other server loads or writes that save
+-- until it is released, so two servers can never save over each other.
+-- It only works when every place uses it, so turn it on in the lobby and
+-- the game place together (copy this file to both, then set it to true
+-- in both). A lock older than LOCK_EXPIRE is taken as a crashed server's
+-- and taken over, and a load waits at most LOCK_WAIT for a lock to be
+-- released before taking it.
+local SESSION_LOCK = false
+local LOCK_EXPIRE = 600
+local LOCK_WAIT = 30
+local LOCK_RETRY = 2
+
 local sessionData = {}
 local dataLoaded = {}
 local loading = {}
@@ -166,6 +179,55 @@ local function versionOf(saved)
 	return type(saved) == "table" and tonumber(saved.SaveVersion) or 0
 end
 
+local function newLock()
+	return { JobId = game.JobId, Time = os.time() }
+end
+
+-- whether another live server holds this save
+local function lockedByOther(saved)
+	local lock = type(saved) == "table" and saved.SessionLock
+	if type(lock) ~= "table" or lock.JobId == game.JobId then
+		return false
+	end
+	return os.time() - (tonumber(lock.Time) or 0) < LOCK_EXPIRE
+end
+
+-- Takes the session lock and reads the save in one go. Waits for another
+-- server to let go, up to LOCK_WAIT, then takes it anyway. Returns like
+-- attempt: (success, saved data or nil for a new player).
+local function claim(player, live, key)
+	local giveUpAt = os.clock() + LOCK_WAIT
+	while true do
+		local force = os.clock() >= giveUpAt
+		local blocked = false
+		local success, result = attempt(function()
+			return live:UpdateAsync(key, function(old)
+				blocked = false
+				if not force and lockedByOther(old) then
+					blocked = true
+					return nil
+				end
+				if type(old) ~= "table" then
+					-- a new player, there is nothing to lock yet (the first save writes it)
+					return nil
+				end
+				old.SessionLock = newLock()
+				return old
+			end)
+		end)
+		if not success or not blocked then
+			if force then
+				warn("DataManager: took " .. player.Name .. "'s save from a server that did not let go of it")
+			end
+			return success, result
+		end
+		if player.Parent ~= Players then
+			return false, nil
+		end
+		task.wait(LOCK_RETRY)
+	end
+end
+
 function DataManager.Load(player)
 	-- One load per player. PlayerManager can ask twice for a player who
 	-- joins as the server starts (PlayerAdded and its loop over players
@@ -187,7 +249,10 @@ function DataManager.Load(player)
 	local live = store()
 
 	local success, result = false, nil
-	if live then
+	if live and SESSION_LOCK then
+		-- the lock makes sure the last server has saved and let go, so there is no version to wait for
+		success, result = claim(player, live, key)
+	elseif live then
 		local options = readOptions()
 		success, result = attempt(function()
 			return live:GetAsync(key, options)
@@ -260,13 +325,53 @@ function DataManager.Save(player)
 	-- still newer than anything already out there.
 	data.SaveVersion = versionOf(data) + 1
 
-	local success = attempt(function()
-		live:SetAsync(key, data)
-	end)
+	local success
+	if SESSION_LOCK then
+		-- only written while this server still holds the lock, which also keeps the lock fresh
+		local lost = false
+		success = attempt(function()
+			live:UpdateAsync(key, function(old)
+				lost = false
+				if lockedByOther(old) then
+					lost = true
+					return nil
+				end
+				data.SessionLock = newLock()
+				return data
+			end)
+		end)
+		if success and lost then
+			warn("DataManager: another server took " .. player.Name .. "'s save, this server stops saving it")
+			noSave[player.UserId] = true
+			return
+		end
+	else
+		success = attempt(function()
+			live:SetAsync(key, data)
+		end)
+	end
 
 	if not success then
 		warn("DataManager: giving up saving data for " .. player.Name)
 	end
+end
+
+-- lets go of a player's session lock, if this server holds it
+local function releaseLock(userId)
+	local live = store()
+	if not SESSION_LOCK or not live or noSave[userId] or not dataLoaded[userId] then
+		return
+	end
+	attempt(function()
+		live:UpdateAsync("Player_" .. userId, function(old)
+			local lock = type(old) == "table" and old.SessionLock
+			if type(lock) ~= "table" or lock.JobId ~= game.JobId then
+				return nil
+			end
+			old.SessionLock = nil
+			return old
+		end)
+	end)
 end
 
 function DataManager.IsLoaded(player)
@@ -316,6 +421,7 @@ function DataManager.SyncAll(player)
 end
 
 function DataManager.Release(player)
+	releaseLock(player.UserId)
 	sessionData[player.UserId] = nil
 	dataLoaded[player.UserId] = nil
 	noSave[player.UserId] = nil
@@ -337,6 +443,7 @@ end
 game:BindToClose(function()
 	for _, player in ipairs(Players:GetPlayers()) do
 		DataManager.Save(player)
+		releaseLock(player.UserId)
 	end
 end)
 
