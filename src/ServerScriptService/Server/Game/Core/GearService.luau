@@ -50,6 +50,26 @@ GearService.Settings = {
 }
 
 local Rng = Random.new()
+-- what each player found this run, as "Rare Courier Cap", for the end screen
+local Found: { [Player]: { string } } = {}
+
+local function Remember(Player: Player, Text: string)
+	local List = Found[Player] or {}
+	table.insert(List, Text)
+	Found[Player] = List
+end
+
+-- the gear one player found this run, and forgets it
+function GearService.TakeFound(Player: Player): { string }
+	local List = Found[Player] or {}
+	Found[Player] = nil
+	return List
+end
+
+-- forgets everything found, for a new run
+function GearService.ClearFound()
+	Found = {}
+end
 
 -- the map this run is on, for the drop pool
 local function CurrentMap(): string
@@ -89,12 +109,14 @@ function GearService.Grant(Player: Player, ItemId: string, Source: string?)
 	if Count >= EquipmentData.Rules.MaxItems then
 		local Scrap = EquipmentData.ScrapValue(Item)
 		DataManager.Increment(Player, "Scrap", Scrap)
+		Remember(Player, string.format("%d Scrap", Scrap))
 		Notify:FireClient(Player, string.format(GearService.Settings.ScrapFormat, RarityName, Def.DisplayName, Scrap))
 		return Item
 	end
 
 	Gear[HttpService:GenerateGUID(false)] = Item
 	DataManager.Set(Player, "Gear", Gear)
+	Remember(Player, RarityName .. " " .. Def.DisplayName)
 	Notify:FireClient(Player, string.format(GearService.Settings.FoundFormat, RarityName, Def.DisplayName))
 	return Item
 end
@@ -110,6 +132,10 @@ local function PickFrom(Source: string): string?
 end
 
 function GearService.Init()
+	Players.PlayerRemoving:Connect(function(Player)
+		Found[Player] = nil
+	end)
+
 	local DamageService = require(script.Parent.Parent.Combat.DamageService)
 	DamageService.EnemyKilled.Event:Connect(function(Enemy, Killer)
 		local Config = GameConfig.Gear

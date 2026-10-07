@@ -121,6 +121,9 @@ RoomBannerController.Settings = {
 	ExpFormat = "+%d EXP",
 	CashFormat = "+$%d",
 	PlayerLineFormat = "%s   %d kills   +%d EXP   +$%d",
+	GearFormat = "Gear found: %s",
+	EnlightenFormat = "%s +%d Enlightenment",
+	CoreLevelFormat = "   LEVEL %d!",
 	ReplayText = "Replay",
 	ReplayVotedText = "Waiting...",
 	LobbyText = "Back to Lobby",
@@ -289,6 +292,19 @@ local function OnRunState(Run)
 				end
 				table.insert(Lines, string.format(Settings.PlayerLineFormat, Entry.Name, Entry.Kills or 0, Entry.Exp or 0, Entry.Cash or 0))
 			end
+		end
+		-- what this player found and how far their core came
+		if Mine and type(Mine.Gear) == "table" and #Mine.Gear > 0 then
+			table.insert(Lines, "")
+			table.insert(Lines, string.format(Settings.GearFormat, table.concat(Mine.Gear, ", ")))
+		end
+		local Core = Mine and Mine.Enlightenment
+		if type(Core) == "table" then
+			local Line = string.format(Settings.EnlightenFormat, tostring(Core.Core), Core.Amount or 0)
+			if (Core.LevelAfter or 0) > (Core.LevelBefore or 0) then
+				Line ..= string.format(Settings.CoreLevelFormat, Core.LevelAfter)
+			end
+			table.insert(Lines, Line)
 		end
 		if Body then
 			Body.Text = table.concat(Lines, "\n")

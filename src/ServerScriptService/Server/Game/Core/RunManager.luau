@@ -95,6 +95,7 @@ local Loadout = require(script.Parent.Loadout)
 local LobbyLink = require(script.Parent.LobbyLink)
 local TeleportDataReader = require(script.Parent.TeleportDataReader)
 local RunStats = require(script.Parent.RunStats)
+local GearService = require(script.Parent.GearService)
 local RoomManager = require(script.Parent.Parent.Rooms.RoomManager)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -150,13 +151,17 @@ local WeaponKills: { [Player]: { [string]: number } } = {}
 local AbilityUses: { [Player]: { [string]: number } } = {}
 local RunStartedAt = os.clock()
 local JoinedAt: { [Player]: number } = {}
+-- what the active core got this run, for the end screen
+local Enlightened: { [Player]: { [string]: any } } = {}
 
 local function ClearRunCounts()
 	Deaths = {}
 	Parries = {}
 	WeaponKills = {}
 	AbilityUses = {}
+	Enlightened = {}
 	RunStartedAt = os.clock()
+	GearService.ClearFound()
 end
 
 local function CountUse(Into: { [Player]: { [string]: number } }, Player: Player, Name: string)
@@ -401,7 +406,14 @@ local function SaveRunDetails(Player: Player, Best: number, Exp: number)
 		-- the active core is enlightened by what the run was worth
 		local Enlightenment = math.floor(Exp * (GameConfig.Cores.EnlightenmentPerExp or 0))
 		if CoreData.Cores[Core] and Enlightenment > 0 then
+			local Before = tonumber(SavedTable(Player, "Cores")[Core]) or 0
 			AddCounts(Player, "Cores", { [Core] = Enlightenment })
+			Enlightened[Player] = {
+				Core = CoreData.Cores[Core].DisplayName or Core,
+				Amount = Enlightenment,
+				LevelBefore = (CoreData.FromXP(Before)),
+				LevelAfter = (CoreData.FromXP(Before + Enlightenment)),
+			}
 		end
 	end
 
@@ -462,6 +474,8 @@ local function SaveLifetimeStats(Won: boolean)
 			Money = Stats and Stats:GetMoney() or 0,
 			Exp = ExpEarned[Player] or 0,
 			Cash = CashEarned[Player] or 0,
+			Gear = GearService.TakeFound(Player),
+			Enlightenment = Enlightened[Player],
 		})
 	end
 	return Lines
@@ -654,7 +668,8 @@ function RunManager.Init()
 	RoomManager.AreaStarted.Event:Connect(OnAreaStarted)
 	RoomManager.AreaCleared.Event:Connect(OnAreaCleared)
 	RoomManager.RunWon.Event:Connect(function()
-		RunManager.End("Won")
+		-- deferred so the boss kill finishes first (its gear drops go on the end screen)
+		task.defer(RunManager.End, "Won")
 	end)
 
 	local DamageService = require(script.Parent.Parent.Combat.DamageService)
@@ -745,6 +760,7 @@ function RunManager.Init()
 		Kills[Player] = nil
 		BestIndex[Player] = nil
 		Deaths[Player] = nil
+		Enlightened[Player] = nil
 		Parries[Player] = nil
 		WeaponKills[Player] = nil
 		AbilityUses[Player] = nil
