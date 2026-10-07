@@ -35,10 +35,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local GameConfig = require(ReplicatedStorage.Modules.Game.Config.GameConfig)
+local MapData = require(ReplicatedStorage.Modules.Game.Data.MapData)
 local RunConfig = require(ReplicatedStorage.Modules.Game.Shared.RunConfig)
 local EquipmentData = require(ReplicatedStorage.Modules.Shared.EquipmentData)
 local DataManager = require(ServerScriptService.Server.Modules.DataManager)
-local TeleportDataReader = require(script.Parent.TeleportDataReader)
 
 local Notify = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Events"):WaitForChild("Notify")
 
@@ -73,8 +73,7 @@ end
 
 -- the map this run is on, for the drop pool
 local function CurrentMap(): string
-	local Data = TeleportDataReader.GetRunData()
-	return Data and Data.Map or GameConfig.Run.DefaultMap or "VeloCITY"
+	return MapData.Current()
 end
 
 -- the highest rarity this difficulty can drop, or nil for no cap

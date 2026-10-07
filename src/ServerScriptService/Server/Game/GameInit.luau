@@ -66,6 +66,8 @@ local GameInit = {}
 -- the systems that do exist can be played before the rest are built.
 -- Uncomment each line as that module gets written.
 local Services = {
+	-- first: waits for the first player and puts their map in workspace
+	{ Name = "MapLoader", Module = Game.Core.MapLoader },
 	{ Name = "RunSetup", Module = Game.Core.RunSetup },
 	-- PlayTime and Timebux for time spent here
 	{ Name = "PlayTimeService", Module = Game.Core.PlayTimeService },

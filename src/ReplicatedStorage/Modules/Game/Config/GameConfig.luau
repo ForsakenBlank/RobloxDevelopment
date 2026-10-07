@@ -262,9 +262,6 @@ GameConfig.Run = {
 	-- Difficulty used when no teleport data arrived, for example when
 	-- someone joins this place directly in Studio.
 	DefaultDifficulty = "Normal",
-
-	-- the map name the end of run stats are saved under (MapBest, MapRuns) when the lobby did not send one
-	DefaultMap = "VeloCITY",
 }
 
 ----------------------------------------------------------------------

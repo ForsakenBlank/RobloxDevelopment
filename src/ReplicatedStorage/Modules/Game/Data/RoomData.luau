@@ -71,6 +71,8 @@
 -- the run is set up, so it needs a restart. The Gate table is read
 -- each time a gate opens, so it can be tuned live.
 
+local MapData = require(script.Parent.MapData)
+
 local RoomData = {}
 
 ----------------------------------------------------------------------
@@ -216,10 +218,38 @@ RoomData.Areas = {
 -- source of truth.
 local AreaByName = {}
 local IndexByName = {}
-for Index, Area in ipairs(RoomData.Areas) do
-	AreaByName[Area.Name] = Area
-	IndexByName[Area.Name] = Index
+local function Index()
+	table.clear(AreaByName)
+	table.clear(IndexByName)
+	for Position, Area in ipairs(RoomData.Areas) do
+		AreaByName[Area.Name] = Area
+		IndexByName[Area.Name] = Position
+	end
 end
+Index()
+
+----------------------------------------------------------------------
+-- MAPS
+----------------------------------------------------------------------
+
+-- Areas for maps that are laid out differently, by map key (see
+-- Game.Data.MapData), in the same format as Areas above. A map not
+-- listed here uses Areas as it is.
+RoomData.MapAreas = {}
+
+local DefaultAreas = table.clone(RoomData.Areas)
+
+-- switches Areas to one map's list, in place, so code holding RoomData.Areas sees the change
+function RoomData.UseMap(Key: string)
+	local List = RoomData.MapAreas[Key] or DefaultAreas
+	table.clear(RoomData.Areas)
+	for _, Area in ipairs(List) do
+		table.insert(RoomData.Areas, Area)
+	end
+	Index()
+end
+
+MapData.Watch(RoomData.UseMap)
 
 -- Looks an area up by name and warns rather than erroring if the name
 -- is wrong, which usually means a zone part or folder is misnamed.

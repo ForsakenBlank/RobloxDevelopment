@@ -52,6 +52,8 @@
 -- the first player enters that area, so a change applies to the next
 -- room entered without a restart.
 
+local MapData = require(script.Parent.MapData)
+
 local WaveData = {}
 
 ----------------------------------------------------------------------
@@ -150,6 +152,27 @@ WaveData.Areas = {
 		},
 	},
 }
+
+----------------------------------------------------------------------
+-- MAPS
+----------------------------------------------------------------------
+
+-- Waves for other maps, by map key (see Game.Data.MapData), in the same
+-- format as Areas above. A map not listed here uses Areas as it is.
+WaveData.MapAreas = {}
+
+local DefaultAreas = table.clone(WaveData.Areas)
+
+-- switches Areas to one map's waves, in place, so code holding WaveData.Areas sees the change
+function WaveData.UseMap(Key: string)
+	local Areas = WaveData.MapAreas[Key] or DefaultAreas
+	table.clear(WaveData.Areas)
+	for Name, Area in pairs(Areas) do
+		WaveData.Areas[Name] = Area
+	end
+end
+
+MapData.Watch(WaveData.UseMap)
 
 ----------------------------------------------------------------------
 -- HELPERS

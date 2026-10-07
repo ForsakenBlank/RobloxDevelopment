@@ -85,6 +85,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local GameConfig = require(ReplicatedStorage.Modules.Game.Config.GameConfig)
+local MapData = require(ReplicatedStorage.Modules.Game.Data.MapData)
 local RoomData = require(ReplicatedStorage.Modules.Game.Data.RoomData)
 local WeaponData = require(ReplicatedStorage.Modules.Game.Data.WeaponData)
 local CoreData = require(ReplicatedStorage.Modules.Shared.CoreData)
@@ -93,7 +94,6 @@ local DataManager = require(ServerScriptService.Server.Modules.DataManager)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Loadout = require(script.Parent.Loadout)
 local LobbyLink = require(script.Parent.LobbyLink)
-local TeleportDataReader = require(script.Parent.TeleportDataReader)
 local RunStats = require(script.Parent.RunStats)
 local GearService = require(script.Parent.GearService)
 local RoomManager = require(script.Parent.Parent.Rooms.RoomManager)
@@ -354,8 +354,7 @@ local Votes: { [Player]: boolean } = {}
 
 -- the map this run is filed under for MapBest and MapRuns
 local function CurrentMap(): string
-	local Data = TeleportDataReader.GetRunData()
-	return Data and Data.Map or GameConfig.Run.DefaultMap or "VeloCITY"
+	return MapData.Current()
 end
 
 -- a fresh copy of a saved table, nested values have to be replaced (not edited) to reach the client
