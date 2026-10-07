@@ -91,3 +91,19 @@ Live (published, lobby to game and back):
 - [x] Quitting the game mid run now pays out like a loss (it used to save nothing)
 - [x] `RunSetup.DataLoadTimeout` raised from 10 to 20 seconds so the version wait cannot run past it
 - [x] Move the area banner and toasts down a little (`RoomBannerController.Settings.PopupDrop`)
+
+## Round 2 (your playtest notes)
+
+Done, needs testing:
+- [ ] Multiplayer: the movement network ran twice (doubled effects and trails, errors on leave), the anti cheat snapped players back for dashing through enemies or past teammates, players collided with each other, and a friend loading in late was not counted. All fixed
+- [ ] Enemy AI: they come from several sides, spread out, keep off walls and edges, turn smoothly, take turns swinging (2 at a time on Normal), step into swings, back off after, and flinch on heavy hits
+- [ ] Attacks pressed right as a cooldown ends are no longer thrown away by the server
+- [ ] Top info: ALL DEFEATED and 0 LEFT after a room, what to do in spawn and shops, NEXT WAVE INCOMING between waves
+- [ ] Money: kills pay 35% of before, prices about 2 to 3 times higher, most shop items much stronger, Molotov much longer range and 15 seconds of fire
+- [ ] Rage buffed, Heal Burst nerfed a little, Teleport's strike is bigger and stuns
+- [ ] Easy and Hard on, Normal harder, Hard built to need good gear (the lobby's picker has to offer Easy and Hard)
+- [ ] Teleports: squads sent back together, party wait 10 seconds, a loading screen on the way out (copy `ReplicatedFirst/TeleportScreen` to the lobby for the same screen both ways)
+
+Needs you:
+- [ ] New fight music: put a new `AudioContent` (rbxassetid) in `src/SoundService/Music/Combat1.model.json` to `Combat4`, or add `Combat5`, `Combat6`... (they join the shuffle on their own)
+
