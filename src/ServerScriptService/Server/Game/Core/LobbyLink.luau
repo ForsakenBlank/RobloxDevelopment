@@ -120,14 +120,13 @@ function LobbyLink.SendToLobby(PlayerList: { Player }, PayloadFor: ((Player) -> 
 		return false
 	end
 
-	-- One teleport per player so each carries their own result. Players
-	-- already being sent are skipped.
+	-- One teleport per player so each carries their own result, all at
+	-- the same time so a squad is not sent one by one behind each other's
+	-- saves. Players already being sent are skipped.
 	local AllOk = true
-	for _, Player in ipairs(PlayerList) do
-		if Player.Parent ~= Players or Sending[Player] then
-			continue
-		end
-		Sending[Player] = true
+	local Pending = 0
+	local AllDone = Instance.new("BindableEvent")
+	local function SendOne(Player: Player)
 		local Payload = PayloadFor and PayloadFor(Player) or {}
 		Payload.Version = 1
 		Payload.Source = "Run"
@@ -157,6 +156,29 @@ function LobbyLink.SendToLobby(PlayerList: { Player }, PayloadFor: ((Player) -> 
 			AllOk = false
 		end
 	end
+	for _, Player in ipairs(PlayerList) do
+		if Player.Parent ~= Players or Sending[Player] then
+			continue
+		end
+		Sending[Player] = true
+		Pending += 1
+		task.spawn(function()
+			local Ok, Error = pcall(SendOne, Player)
+			if not Ok then
+				warn("[LobbyLink] sending " .. Player.Name .. " failed: " .. tostring(Error))
+				Sending[Player] = nil
+				AllOk = false
+			end
+			Pending -= 1
+			if Pending == 0 then
+				AllDone:Fire()
+			end
+		end)
+	end
+	if Pending > 0 then
+		AllDone.Event:Wait()
+	end
+	AllDone:Destroy()
 	return AllOk
 end
 

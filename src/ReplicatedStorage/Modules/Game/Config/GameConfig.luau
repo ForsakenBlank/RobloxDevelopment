@@ -342,7 +342,8 @@ GameConfig.Lobby = {
 	PlaceId = 132125671517738,
 	-- Seconds to wait for everyone the lobby said was coming before
 	-- the run starts without them.
-	PartyWaitTimeout = 20,
+	-- players later than this still count while the run is in Spawn (RunSetup.Recount)
+	PartyWaitTimeout = 10,
 	-- Teleport attempts before giving up and restarting in place.
 	TeleportRetries = 3,
 	TeleportRetryDelay = 2,
