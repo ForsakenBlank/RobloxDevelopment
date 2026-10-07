@@ -2,6 +2,15 @@
   "name": "RobloxDevelopment",
   "tree": {
     "$className": "DataModel",
+    "Workspace": {
+      "$className": "Workspace",
+      "$ignoreUnknownInstances": true,
+      "$path": "src/Workspace"
+    },
+    "ReplicatedFirst": {
+      "$className": "ReplicatedFirst",
+      "$path": "src/ReplicatedFirst"
+    },
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "$path": "src/ReplicatedStorage"
@@ -9,6 +18,18 @@
     "ServerScriptService": {
       "$className": "ServerScriptService",
       "$path": "src/ServerScriptService"
+    },
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "$path": "src/ServerStorage"
+    },
+    "StarterGui": {
+      "$className": "StarterGui",
+      "$path": "src/StarterGui"
+    },
+    "StarterPack": {
+      "$className": "StarterPack",
+      "$path": "src/StarterPack"
     },
     "StarterPlayer": {
       "$className": "StarterPlayer",
@@ -20,6 +41,18 @@
         "CameraMaxZoomDistance": 128.0,
         "CharacterUseJumpPower": false
       }
+    },
+    "Teams": {
+      "$className": "Teams",
+      "$path": "src/Teams"
+    },
+    "SoundService": {
+      "$className": "SoundService",
+      "$path": "src/SoundService"
+    },
+    "TextChatService": {
+      "$className": "TextChatService",
+      "$path": "src/TextChatService"
     }
   }
 }
