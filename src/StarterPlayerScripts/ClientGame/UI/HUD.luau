@@ -135,6 +135,25 @@ function HUD.new()
 	self.MoneyShown = 0
 	self.MoneyTarget = 0
 
+	-- The line under the wave number and its bar of enemies left.
+	self.LeftLabel = Find(self.Gui, "EnemiesLeft", true)
+	local WaveBar = Find(self.Gui, "WaveBar", true)
+	self.WaveFill = WaveBar and WaveBar:FindFirstChild(Names.BarFill, true)
+	self.WaveNumber = nil
+	self.WaveSize = 1
+
+	-- The player's own name and face on the stats panel.
+	local StatsFrame = Find(self.Gui, Names.Stats)
+	local Player = Players.LocalPlayer
+	local NameLabel = Find(StatsFrame, "PlayerName", true)
+	if NameLabel then
+		NameLabel.Text = Player.DisplayName
+	end
+	local Portrait = Find(StatsFrame, "Portrait", true)
+	if Portrait then
+		Portrait.Image = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", Player.UserId)
+	end
+
 	-- Cooldown slots, keyed by their frame name.
 	self.Slots = {}
 	self.SwapLabels = {}
@@ -330,10 +349,32 @@ function HUD:SetWave(Current: number?, Total: number?, EnemiesLeft: number?)
 	if Current == nil then
 		self.WaveLabel.Text = Config.IdleText
 		self.WaveLabel.Visible = not Config.HideWhenIdle
+		self.WaveNumber = nil
+		if self.LeftLabel then
+			self.LeftLabel.Text = ""
+		end
+		if self.WaveFill then
+			self.WaveFill.Size = UDim2.new(0, 0, 1, 0)
+		end
 		return
 	end
 	self.WaveLabel.Visible = true
 	self.WaveLabel.Text = string.format(Config.Format, Current, Total or 0, EnemiesLeft or 0)
+
+	-- The bar is enemies left over the most this wave has had.
+	local Left = EnemiesLeft or 0
+	if Current ~= self.WaveNumber then
+		self.WaveNumber = Current
+		self.WaveSize = 1
+	end
+	self.WaveSize = math.max(self.WaveSize, Left)
+	if self.LeftLabel then
+		self.LeftLabel.Text = string.format(Config.LeftFormat, Left)
+	end
+	if self.WaveFill then
+		local Bars = HUDConfig.Bars
+		Tween(self.WaveFill, Bars.TweenTime, { Size = UDim2.new(Left / self.WaveSize, 0, 1, 0) }, Bars.EasingStyle, Bars.EasingDirection)
+	end
 end
 
 -- Sets everything from a PlayerStats snapshot in one go.
@@ -376,7 +417,7 @@ end
 function HUD:SetSwapKey(GroupName: string, Key: string)
 	local Label = self.SwapLabels[GroupName]
 	if Label then
-		Label.Text = string.format(HUDConfig.Cooldowns.SwapFormat, GroupName, Key)
+		Label.Text = string.upper(string.format(HUDConfig.Cooldowns.SwapFormat, GroupName, Key))
 	end
 end
 

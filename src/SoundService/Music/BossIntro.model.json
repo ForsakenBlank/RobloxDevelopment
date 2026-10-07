@@ -1,0 +1,10 @@
+{
+  "className": "Sound",
+  "properties": {
+    "AudioContent": "rbxassetid://9043642631",
+    "Volume": 0.6000000238418579
+  },
+  "attributes": {
+    "Rojo_Target_SoundGroup": "7ece0daf4b6836720acaa7e20000421d"
+  }
+}

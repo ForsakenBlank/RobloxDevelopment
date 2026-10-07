@@ -42,21 +42,23 @@ local HUDConfig = {}
 -- Instance names under StarterGui.HUD. The structure is:
 --   HUD (ScreenGui)
 --     Stats (Frame)
---       HealthBar (Frame) > Fill (Frame), Value (TextLabel)
---       EnergyBar (Frame) > Fill (Frame), Value (TextLabel)
---       Money (TextLabel)
---       Level (TextLabel)
+--       HealthBar (Frame) > Meter > Track > Fill (Frame), Value (TextLabel)
+--       EnergyBar (Frame) > Meter > Track > Fill (Frame), Value (TextLabel)
+--       Money, Level, PlayerName (TextLabel), Portrait (ImageLabel)
 --     Cooldowns (Frame)
---       Weapons (Frame) > Swap (TextLabel, the swap key, centred above)
+--       Weapons (Frame) > Swap (TextLabel, the heading above the slots)
 --                       > Slots > WeaponSlot1, WeaponSlot2 (Frame)
 --       Abilities (Frame) > Swap > Slots > AbilitySlot1, AbilitySlot2
---         each slot > Key (TextLabel, above the box)
+--         each slot > Key (TextLabel, top left badge)
 --                   > Base (Frame) > Icon (ImageLabel), Sweep (Frame),
 --                                    Timer (TextLabel)
---                   > Name (TextLabel, below the box)
+--                   > Name (TextLabel, bottom right badge)
 --     Effects (Frame) > EffectTemplate (Frame, hidden)
---     WaveInfo (TextLabel)
---     Difficulty (TextLabel)
+--     TopInfo (Frame) > WaveInfo, RoomInfo, Difficulty, EnemiesLeft
+--                       (TextLabel), WaveBar > Track > Fill (Frame)
+--     Party (Frame) > MemberTemplate, driven by PartyController
+-- The slanted panel shapes are plain Frames named Back, Rim, Inside and
+-- so on. Nothing looks them up.
 HUDConfig.Names = {
 	ScreenGui = "HUD",
 
@@ -157,7 +159,7 @@ HUDConfig.Money = {
 }
 
 HUDConfig.Level = {
-	Format = "Level %d",
+	Format = "LV %d",
 }
 
 ----------------------------------------------------------------------
@@ -178,17 +180,18 @@ HUDConfig.Cooldowns = {
 	-- The slot that is not currently equipped is faded to this.
 	InactiveTransparency = 0.55,
 	-- Slot outline for the equipped slot and the put away one.
-	ActiveOutline = Color3.fromRGB(255, 255, 255),
-	IdleOutline = Color3.fromRGB(70, 70, 80),
+	ActiveOutline = Color3.fromRGB(8, 8, 11),
+	IdleOutline = Color3.fromRGB(190, 196, 208),
 	-- Ability slots the player cannot afford dim to this.
 	UnaffordableTransparency = 0.4,
-	-- Show the keybind letter above each slot.
-	ShowKeys = true,
+	-- Show the keybind badge on each slot. Off: R and G swap, so the
+	-- slots have no keys of their own (the headings say so).
+	ShowKeys = false,
 	-- Show the heading above each pair of slots, with its keys.
 	ShowSwapKey = true,
 	-- The first %s is the group (Weapons or Abilities), the second the
 	-- keys.
-	SwapFormat = "%s  -  %s",
+	SwapFormat = "%s · %s",
 	-- Show the weapon or ability name under each slot.
 	ShowNames = true,
 }
@@ -216,7 +219,9 @@ HUDConfig.Effects = {
 
 HUDConfig.Wave = {
 	-- %d are wave number, wave total, enemies left in that order.
-	Format = "WAVE %d / %d    ENEMIES %d",
+	Format = "WAVE %d/%d",
+	-- The line under it. %d is the enemies left.
+	LeftFormat = "%d LEFT",
 	-- What shows between fights.
 	IdleText = "",
 	-- Hide the label entirely when there is no wave running.

@@ -2,6 +2,10 @@
   "name": "RobloxDevelopment",
   "tree": {
     "$className": "DataModel",
+    "ReplicatedFirst": {
+      "$className": "ReplicatedFirst",
+      "$path": "src/ReplicatedFirst"
+    },
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "$path": "src/ReplicatedStorage"
@@ -9,6 +13,29 @@
     "ServerScriptService": {
       "$className": "ServerScriptService",
       "$path": "src/ServerScriptService"
+    },
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "$path": "src/ServerStorage"
+    },
+    "SoundService": {
+      "$className": "SoundService",
+      "$properties": {
+        "DefaultListenerLocation": "Camera",
+        "RespectFilteringEnabled": true
+      },
+      "$path": "src/SoundService"
+    },
+    "StarterGui": {
+      "$className": "StarterGui",
+      "$properties": {
+        "ScreenOrientation": "Sensor"
+      },
+      "$path": "src/StarterGui"
+    },
+    "StarterPack": {
+      "$className": "StarterPack",
+      "$path": "src/StarterPack"
     },
     "StarterPlayer": {
       "$className": "StarterPlayer",
@@ -20,6 +47,18 @@
         "CameraMaxZoomDistance": 128.0,
         "CharacterUseJumpPower": false
       }
+    },
+    "Teams": {
+      "$className": "Teams",
+      "$path": "src/Teams"
+    },
+    "TextChatService": {
+      "$className": "TextChatService",
+      "$properties": {
+        "ChatVersion": "TextChatService",
+        "IsLegacyChatDisabled": true
+      },
+      "$path": "src/TextChatService"
     }
   }
 }

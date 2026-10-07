@@ -75,7 +75,14 @@ local function Build(PlayerGui: PlayerGui, Hud: Instance, Gui: SurfaceGui)
 		warn("[HUDTilt] " .. Gui.Name .. " has no panel called " .. tostring(PanelName) .. " in " .. Hud.Name)
 		return
 	end
-	local Design = { Position = Panel.Position, Size = Panel.Size, AnchorPoint = Panel.AnchorPoint }
+	local Ratio = Panel:FindFirstChildOfClass("UIAspectRatioConstraint")
+	local Design = {
+		Position = Panel.Position,
+		Size = Panel.Size,
+		AnchorPoint = Panel.AnchorPoint,
+		-- A panel that keeps its shape is as wide as its height allows.
+		AspectRatio = Ratio and Ratio.AspectRatio or nil,
+	}
 
 	local Part = Instance.new("Part")
 	Part.Name = Gui.Name .. "Anchor"
@@ -91,6 +98,8 @@ local function Build(PlayerGui: PlayerGui, Hud: Instance, Gui: SurfaceGui)
 	Gui.Adornee = Part
 	Panel.AnchorPoint = Vector2.zero
 	Panel.Position = UDim2.fromScale(0, 0)
+	-- The canvas is already the panel's size, so the panel fills it.
+	Panel.Size = UDim2.fromScale(1, 1)
 	Panel.Parent = Gui
 
 	table.insert(Entries, { Gui = Gui, Panel = Panel, Part = Part, Design = Design })
@@ -119,6 +128,9 @@ local function Step()
 			Design.Size.X.Scale * View.X + Design.Size.X.Offset,
 			Design.Size.Y.Scale * View.Y + Design.Size.Y.Offset
 		)
+		if Design.AspectRatio then
+			SizePx = Vector2.new(SizePx.Y * Design.AspectRatio, SizePx.Y)
+		end
 		local TopLeft = Vector2.new(
 			Design.Position.X.Scale * View.X + Design.Position.X.Offset,
 			Design.Position.Y.Scale * View.Y + Design.Position.Y.Offset

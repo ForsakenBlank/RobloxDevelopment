@@ -1,0 +1,11 @@
+{
+  "className": "Sound",
+  "properties": {
+    "AudioContent": "rbxassetid://1845792922",
+    "Looped": true,
+    "Volume": 0.550000011920929
+  },
+  "attributes": {
+    "Rojo_Target_SoundGroup": "7ece0daf4b6836720acaa7e20000421d"
+  }
+}

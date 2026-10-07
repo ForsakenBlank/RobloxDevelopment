@@ -128,6 +128,10 @@ local function AddMember(Other: Player)
 		local Row = MemberTemplate:Clone()
 		Row.Name = "Member_" .. Other.UserId
 		Row.Visible = true
+		local Face = Row:FindFirstChild("Face", true)
+		if Face and Face:IsA("ImageLabel") then
+			Face.Image = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", Other.UserId)
+		end
 		Row.Parent = Panel
 		Entry.Row = Row
 	end

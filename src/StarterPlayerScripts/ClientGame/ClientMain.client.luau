@@ -82,6 +82,8 @@ local ControllerList = {
 	{ Name = "CollisionController", Module = Controllers.CollisionController },
 	-- Speed lines and colour grading.
 	{ Name = "ScreenEffects", Module = Controllers.ScreenEffects },
+	-- The sliding squares behind the HUD panels.
+	{ Name = "UIPattern", Module = Controllers.UIPattern },
 	-- Moves the main HUD panels onto tilted 3D surfaces. Before
 	-- HUDEffects, so HUDEffects leaves those panels alone.
 	{ Name = "HUDTilt", Module = Controllers.HUDTilt },
