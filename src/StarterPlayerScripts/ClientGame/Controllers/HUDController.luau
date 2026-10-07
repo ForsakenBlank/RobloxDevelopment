@@ -74,6 +74,7 @@ local WeaponData = require(ReplicatedStorage.Modules.Game.Data.WeaponData)
 local AbilityData = require(ReplicatedStorage.Modules.Game.Data.AbilityData)
 local RunConfig = require(ReplicatedStorage.Modules.Game.Shared.RunConfig)
 local HUD = require(script.Parent.Parent.UI.HUD)
+local Keybinds = require(ReplicatedStorage.Modules.Shared.Keybinds)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local Events = Remotes:WaitForChild("Events")
@@ -83,6 +84,8 @@ local HUDController = {}
 
 local Hud = nil
 local LastSnapshot = nil
+-- the last loadout shown, so the key labels can be redrawn when the keys change
+local LastLoadout = nil
 local SlotAbilities: { [string]: string? } = {}
 
 ----------------------------------------------------------------------
@@ -111,15 +114,6 @@ local function ApplyCoreGui()
 		end
 		task.wait(0.5)
 	end
-end
-
-local function KeyName(KeyCode: Enum.KeyCode?): string
-	if not KeyCode then
-		return ""
-	end
-	local Name = KeyCode.Name
-	local Digits = { One = "1", Two = "2", Three = "3", Four = "4", Five = "5", Six = "6" }
-	return Digits[Name] or Name
 end
 
 local function RefreshAffordable()
@@ -166,8 +160,7 @@ function HUDController.SetLoadout(Weapons: { string }, Abilities: { string })
 	if not Hud then
 		return
 	end
-	local WeaponKeys = WeaponData.Keybinds.Keyboard
-	local AbilityKeys = AbilityData.Keybinds.Keyboard
+	LastLoadout = { Weapons, Abilities }
 	local WeaponSlots = { WeaponData.Hotbar.Slot1, WeaponData.Hotbar.Slot2 }
 	local AbilitySlots = { AbilityData.Hotbar.Slot1, AbilityData.Hotbar.Slot2 }
 	-- There are no per slot keys: R and G swap, E uses, and the number
@@ -191,8 +184,9 @@ function HUDController.SetLoadout(Weapons: { string }, Abilities: { string })
 		} or nil)
 	end
 
-	Hud:SetSwapKey(HUDConfig.Names.WeaponGroup, KeyName(WeaponKeys.SwapWeapon) .. " swap")
-	Hud:SetSwapKey(HUDConfig.Names.AbilityGroup, KeyName(AbilityKeys.Use) .. " use, " .. KeyName(AbilityKeys.SwapAbility) .. " swap")
+	-- the player's own keys, redrawn when they change
+	Hud:SetSwapKey(HUDConfig.Names.WeaponGroup, Keybinds.Label("SwapWeapon") .. " swap")
+	Hud:SetSwapKey(HUDConfig.Names.AbilityGroup, Keybinds.Label("UseAbility") .. " use, " .. Keybinds.Label("SwapAbility") .. " swap")
 
 	SlotAbilities = {}
 	for Index, SlotName in ipairs(AbilitySlots) do
@@ -254,6 +248,12 @@ end
 function HUDController.Init()
 	Hud = HUD.new()
 	task.spawn(ApplyCoreGui)
+
+	Keybinds.Changed.Event:Connect(function()
+		if LastLoadout then
+			HUDController.SetLoadout(LastLoadout[1], LastLoadout[2])
+		end
+	end)
 
 	-- Size the bars from the config until the first server value
 	-- arrives, so they are not empty for a frame.

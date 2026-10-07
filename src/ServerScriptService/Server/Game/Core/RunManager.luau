@@ -87,6 +87,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local GameConfig = require(ReplicatedStorage.Modules.Game.Config.GameConfig)
 local RoomData = require(ReplicatedStorage.Modules.Game.Data.RoomData)
 local WeaponData = require(ReplicatedStorage.Modules.Game.Data.WeaponData)
+local CoreData = require(ReplicatedStorage.Modules.Shared.CoreData)
 local RunConfig = require(ReplicatedStorage.Modules.Game.Shared.RunConfig)
 local DataManager = require(ServerScriptService.Server.Modules.DataManager)
 local PlayerStats = require(script.Parent.PlayerStats)
@@ -371,7 +372,7 @@ local function AddCounts(Player: Player, Key: string, Counts: { [string]: number
 end
 
 -- deaths, map, core, weapon and ability stats for one player
-local function SaveRunDetails(Player: Player, Best: number)
+local function SaveRunDetails(Player: Player, Best: number, Exp: number)
 	if (Deaths[Player] or 0) > 0 then
 		DataManager.Increment(Player, "Deaths", Deaths[Player])
 	end
@@ -397,6 +398,11 @@ local function SaveRunDetails(Player: Player, Best: number)
 		local Seconds = math.floor(os.clock() - math.max(RunStartedAt, JoinedAt[Player] or 0))
 		AddCounts(Player, "CoreTime", { [Core] = math.max(Seconds, 0) })
 		AddCounts(Player, "CoreRuns", { [Core] = 1 })
+		-- the active core is enlightened by what the run was worth
+		local Enlightenment = math.floor(Exp * (GameConfig.Cores.EnlightenmentPerExp or 0))
+		if CoreData.Cores[Core] and Enlightenment > 0 then
+			AddCounts(Player, "Cores", { [Core] = Enlightenment })
+		end
 	end
 
 	AddCounts(Player, "WeaponKills", WeaponKills[Player])
@@ -441,7 +447,7 @@ local function SavePlayer(Player: Player, Won: boolean)
 	if Exp > 0 then
 		DataManager.Increment(Player, "XP", Exp)
 	end
-	SaveRunDetails(Player, Best)
+	SaveRunDetails(Player, Best, Exp)
 end
 
 local function SaveLifetimeStats(Won: boolean)
@@ -689,6 +695,14 @@ function RunManager.Init()
 	for _, Player in ipairs(Players:GetPlayers()) do
 		WatchPlayer(Player)
 	end
+	-- quitting the game mid run pays out the same as losing, before their save is written
+	local PlayerManager = require(ServerScriptService.Server.Modules.PlayerManager)
+	PlayerManager.OnLeaving(function(Player)
+		if State == "Playing" then
+			SavePlayer(Player, false)
+		end
+	end)
+
 	-- "Back to lobby" in the middle of a run: save what they earned,
 	-- then send them.
 	LobbyLink.PlayerLeaving.Event:Connect(function(Player)
@@ -713,7 +727,14 @@ function RunManager.Init()
 	RemoteGuard.BindEvent(RunVote, { Rate = 3, Burst = 3 }, OnVote)
 
 	Players.PlayerRemoving:Connect(function(Player)
-		Saved[Player] = nil
+		-- in case this runs before PlayerManager's callback, Saved stops it paying twice
+		if State == "Playing" then
+			SavePlayer(Player, false)
+		end
+		-- cleared a bit later so the other leaving handler can't pay them a second time
+		task.delay(5, function()
+			Saved[Player] = nil
+		end)
 		CashEarned[Player] = nil
 		ExpEarned[Player] = nil
 		Votes[Player] = nil

@@ -89,6 +89,7 @@ local HelperFunctions = require(ReplicatedStorage.Modules.Shared.HelperFunctions
 local HUDController = require(script.Parent.HUDController)
 local AbilityInput = require(script.Parent.AbilityInput)
 local InventoryController = require(script.Parent.InventoryController)
+local Keybinds = require(ReplicatedStorage.Modules.Shared.Keybinds)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local Events = Remotes:WaitForChild("Events")
@@ -413,9 +414,10 @@ end
 
 local function ButtonFor(Input: InputObject): string?
 	local Keys = WeaponData.Keybinds
-	if Input.UserInputType == Keys.Keyboard.MB1 then
+	-- the player's own keys from the lobby, these can be keys and not just mouse buttons
+	if Keybinds.Is("Attack", Input) then
 		return "MB1"
-	elseif Input.UserInputType == Keys.Keyboard.MB2 then
+	elseif Keybinds.Is("AltAttack", Input) then
 		return "MB2"
 	elseif Input.UserInputType == Enum.UserInputType.Gamepad1 then
 		if Input.KeyCode == Keys.Gamepad.MB1 then
@@ -428,7 +430,7 @@ local function ButtonFor(Input: InputObject): string?
 end
 
 local function OnInputBegan(Input: InputObject, GameProcessed: boolean)
-	if GameProcessed then
+	if GameProcessed or Keybinds.IsCapturing() then
 		return
 	end
 
@@ -444,7 +446,7 @@ local function OnInputBegan(Input: InputObject, GameProcessed: boolean)
 	end
 
 	local Keys = WeaponData.Keybinds
-	if Input.KeyCode == Keys.Keyboard.SwapWeapon or Input.KeyCode == Keys.Gamepad.SwapWeapon then
+	if Keybinds.Is("SwapWeapon", Input) or Input.KeyCode == Keys.Gamepad.SwapWeapon then
 		CombatInput.Swap()
 	end
 end

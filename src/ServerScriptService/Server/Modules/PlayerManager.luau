@@ -7,6 +7,13 @@ local DataManager = require(script.Parent.DataManager)
 
 local PlayerManager = {}
 
+-- run for a leaving player before their save is written, so anything they earned gets into it
+local leavingCallbacks = {}
+
+function PlayerManager.OnLeaving(callback)
+	table.insert(leavingCallbacks, callback)
+end
+
 local function load(player)
 	DataManager.Load(player)
 	DataManager.SyncAll(player)
@@ -16,6 +23,12 @@ function PlayerManager.Init()
 	Players.PlayerAdded:Connect(load)
 
 	Players.PlayerRemoving:Connect(function(player)
+		for _, callback in ipairs(leavingCallbacks) do
+			local ok, err = pcall(callback, player)
+			if not ok then
+				warn("PlayerManager: leaving callback errored - " .. tostring(err))
+			end
+		end
 		DataManager.Save(player)
 		DataManager.Release(player)
 	end)

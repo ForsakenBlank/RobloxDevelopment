@@ -68,6 +68,7 @@ local AbilityData = require(ReplicatedStorage.Modules.Game.Data.AbilityData)
 local CombatFX = require(ReplicatedStorage.Modules.Game.Shared.CombatFX)
 local HelperFunctions = require(ReplicatedStorage.Modules.Shared.HelperFunctions)
 local HUDController = require(script.Parent.HUDController)
+local Keybinds = require(ReplicatedStorage.Modules.Shared.Keybinds)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local Events = Remotes:WaitForChild("Events")
@@ -533,15 +534,18 @@ local function OnInputBegan(Input: InputObject, GameProcessed: boolean)
 		return
 	end
 
-	local Keys = AbilityData.Keybinds
-	local Keyboard, Gamepad = Keys.Keyboard, Keys.Gamepad
+	if Keybinds.IsCapturing() then
+		return
+	end
+
+	local Gamepad = AbilityData.Keybinds.Gamepad
 	local Code = Input.KeyCode
 
-	if Code == Keyboard.Use or Code == Gamepad.Use then
+	if Keybinds.Is("UseAbility", Input) or Code == Gamepad.Use then
 		if Snapshot then
 			TryUse(Snapshot.ActiveAbility)
 		end
-	elseif Code == Keyboard.SwapAbility or Code == Gamepad.SwapAbility then
+	elseif Keybinds.Is("SwapAbility", Input) or Code == Gamepad.SwapAbility then
 		if not Snapshot then
 			return
 		end

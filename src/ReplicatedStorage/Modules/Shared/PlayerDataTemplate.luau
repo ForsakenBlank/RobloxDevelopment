@@ -1,101 +1,160 @@
---[[
-	PlayerDataTemplate
+-- PlayerDataTemplate
+-- This is the default data every player starts with.
+-- To add a new saved variable, just add a line below.
+-- DataManager fills it in for every player automatically and
+-- it will not overwrite anyone's existing save.
+--
+-- The game place ("VeloCITY Map") shares this save, so both places
+-- need the same keys: its own PlayerDataTemplate
+-- (ReplicatedStorage.Modules.Shared) has the same ones. Keys only one
+-- place uses are still kept safe by the other, because DataManager
+-- saves the whole table and only fills in what is missing.
 
-	The default saved data for a player who has never played before.
-	This is what gets written to a fresh save, and any key added here
-	later gets filled in automatically for players who already have an
-	older save.
+local PlayerDataTemplate = {
 
-	Only things that should survive between sessions go in here, so the
-	chosen loadout, permanent unlocks, total kills, best room reached and
-	any currency meant to carry over. Run values like current health,
-	energy and the money earned this run do not belong here, because a
-	run resets when it ends. Those live on Server.Game.Core.PlayerStats.
-
-	The loadout is the important one for this place. Character creation
-	happens in the lobby, and the lobby writes the player's 2 chosen
-	weapons and 2 chosen abilities into this save. This place reads them
-	back out instead of being handed them. So the template needs keys for
-	both weapon slots and both ability slots, with sensible defaults for
-	a player who somehow arrives without having picked.
-]]
-
---[[
-	What connects to this
-
-	ServerScriptService.Server.Modules.DataManager requires this on load
-	and uses it in two places. It deep copies it for a brand new player,
-	and its fillMissing function walks it to add any key a returning
-	player's save does not have yet. That means adding a new saved
-	variable only needs a line in here and nothing else.
-
-	Server.Game.Core.Loadout reads the four loadout keys through
-	DataManager.Get to build the player's weapons and abilities for the
-	run. The values stored are the key names from
-	Game.Data.WeaponData and Game.Data.AbilityData, so those two tables
-	and the defaults in here have to agree.
-
-	ServerScriptService.Server.Modules.LeaderstatsManager reads whichever
-	keys it puts on the leaderboard, so those key names have to match.
-	It currently lists Cash and Level.
-
-	Server.Game.Core.RunManager writes back through DataManager.Set and
-	DataManager.Increment at the end of a run for anything that
-	persists, like a best room reached.
-
-	The lobby place needs the exact same template, since it is the one
-	writing the loadout. If the two places disagree, whichever saves last
-	will overwrite keys the other added, and it will look like data is
-	being lost. This is the single most important thing to keep in step
-	between the two places.
-]]
-
-return {
-	-- Loadout, written by the lobby's character creation. The names
-	-- are keys in WeaponData.Weapons and AbilityData.Abilities. These
-	-- defaults are what a player gets if they arrive without picking.
+	-- Loadout, picked on the character creation screen here and used
+	-- by the game. The names are keys in Shared.LoadoutData (and in the
+	-- game's WeaponData and AbilityData).
 	Weapon1 = "Sword",
 	Weapon2 = "Pistol",
 	Ability1 = "StunSlam",
 	Ability2 = "Teleport",
 
-	-- Shown on the Roblox leaderboard by LeaderstatsManager. Cash is
-	-- the carry over currency for the lobby, separate from the money
-	-- earned inside a run.
+	-- Whether the player has been through the character creation screen
+	-- (Client.Modules.CharacterCreationUI). It opens on every join until
+	-- this is true, and that includes players whose save is from before
+	-- the screen existed, since they have never picked a core.
+	CharacterCreated = false,
+	-- "Starter" for the game's own character, "Roblox" for the player's
+	-- Roblox avatar. Server.Services.CharacterService applies it.
+	AvatarMode = "Starter",
+
+	-- The Custom Character's skin (a key in Shared.SkinData; Cape and
+	-- Plain are free) and the skins owned beyond the free and level ones,
+	-- as { [Key] = true }: bought with Cash, or granted by the game place
+	-- for beating a boss. Face and BodyColours ({ Torso = "#RRGGBB" })
+	-- only show while the player owns the Customise gamepass; "" and {}
+	-- leave the skin as it is.
+	Skin = "Cape",
+	OwnedSkins = {},
+	Face = "",
+	BodyColours = {},
+	-- The USE CUSTOMISATION tick box: false wears the skin as it is
+	-- without losing the face and colours.
+	CustomiseOn = true,
+
+	-- Timebux: earned by time in game, spent on gamepasses (1 = 1 Robux).
+	-- Passes holds gamepasses bought with Timebux as { [Key] = true }; ones
+	-- bought with Robux are checked with Roblox instead
+	-- (Server.Services.SkinService).
+	Timebux = 0,
+	Passes = {},
+
+	-- The developer's unlock-everything switch (Shared.SkinData.DevUserIds
+	-- only; the server ignores it for anyone else).
+	DevUnlockAll = false,
+
+	-- The active core (a key in Shared.CoreData, "" until one is picked)
+	-- and every core's total Enlightenment. The level of each is worked
+	-- out from its total, see Server.Services.CoreService.
+	Core = "",
+	Cores = {
+		Ruby = 0,
+		Sapphire = 0,
+		Amethyst = 0,
+		Diamond = 0,
+	},
+
+	-- Gear (Shared.EquipmentData): every armour piece and accessory the
+	-- player owns, as { [ItemId] = { Id, Rarity, Stars, Lines, Rerolls,
+	-- Got, Dev } }. Everyone starts with none; it drops in runs (the game
+	-- place adds it with EquipmentData.NewItem). Armor and Accessories
+	-- hold the ids of what is worn ("" for an empty slot); Accessories has
+	-- one entry per slot. Scrap comes from dismantling gear and pays for
+	-- rerolls. Server.Services.EquipmentService checks all of it on join.
+	Gear = {},
+	Armor = {
+		Boots = "",
+		Chestplate = "",
+		Helmet = "",
+	},
+	Accessories = { "", "", "", "", "" },
+	Scrap = 0,
+	-- Weapons, abilities and equipment unlocked by something other than
+	-- level (a shop, a boss drop), as { [Key] = true }.
+	Unlocks = {},
+
 	Cash = 0,
 	Level = 1,
-	-- Total experience, earned at the end of every run from kills, how
-	-- far the run got and whether it was won. Called XP to match the
-	-- lobby, which shares this save and works Level out from it.
+	-- Total XP. Earned in the game at the end of every run; Level is
+	-- worked out from it (Shared.Leveling).
 	XP = 0,
 
-	-- Lifetime stats, written at the end of a run.
+	-- Lifetime stats, written by the game at the end of a run and shown
+	-- on the Stats panel here.
 	TotalKills = 0,
 	TotalRuns = 0,
 	RunsWon = 0,
 	BestRoom = 0,
 
-	-- The difficulty picked in the lobby. Read by TeleportDataReader
-	-- as a fallback when no teleport data arrived.
-	Difficulty = "Normal",
-
-	-- Permanent upgrades bought in the lobby with Cash. Empty until the
-	-- lobby has a shop for them.
-	Upgrades = {},
-
-	-- more lifetime stats, shared with the lobby's Stats screen
+	-- More lifetime stats for the Stats menu. PlayTime (seconds) is
+	-- counted in the lobby (Server.Services.SkinService); the rest are for
+	-- the game place to add to at the end of a run:
+	--   Deaths, Parries, PerfectParries   numbers
+	--   MapBest      { [MapKey] = { [Difficulty] = best area reached } }
+	--   MapRuns      { [MapKey] = runs played }
+	--   CoreTime     { [CoreKey] = seconds played with it active }
+	--   CoreRuns     { [CoreKey] = runs played with it active }
+	--   WeaponKills  { [WeaponKey] = kills }
+	--   AbilityUses  { [AbilityKey] = uses }
+	PlayTime = 0,
 	Deaths = 0,
 	Parries = 0,
 	PerfectParries = 0,
-	-- MapBest[Map][Difficulty] is the furthest area index reached
 	MapBest = {},
 	MapRuns = {},
-	-- seconds played and runs started with each core equipped
 	CoreTime = {},
 	CoreRuns = {},
 	WeaponKills = {},
 	AbilityUses = {},
 
-	-- goes up by 1 on every save, the lobby and this place use it to spot an old copy of the save
+	-- The difficulty last picked on the Play menu.
+	Difficulty = "Normal",
+
+	-- Permanent upgrades bought with Cash. Empty until there is a shop
+	-- for them.
+	Upgrades = {},
+
+	-- The Settings screen's choices (Shared.SettingsData has the list and
+	-- defaults; older saves without some of these get the defaults).
+	-- MusicEnabled and SFXEnabled are the game place's older switches.
+	Settings = {
+		MusicEnabled = true,
+		SFXEnabled = true,
+		MasterVolume = 100,
+		MusicVolume = 70,
+		EffectsVolume = 80,
+		MenuSounds = true,
+		CameraShake = true,
+		MovingBackgrounds = true,
+		HoverInfo = true,
+		CoreTags = true,
+	},
+
+	-- The player's own keys (Settings > CONTROLS), only the ones they
+	-- changed: { [Action] = "KeyName" }. Shared.Keybinds has the list and
+	-- the defaults; Server.Services.SettingsService checks every change.
+	-- The game place reads it for the combat and movement keys.
+	Keybinds = {},
+
+	Inventory = {},
+
+	-- One higher every time the save is written (Server.Modules.
+	-- DataManager). A place sending a player on puts the number it just
+	-- saved in the teleport data, and the place they arrive in waits for
+	-- a copy at least that new, so nobody plays on an old save.
 	SaveVersion = 0,
+
 }
+
+return PlayerDataTemplate

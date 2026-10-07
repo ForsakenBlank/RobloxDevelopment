@@ -1,36 +1,34 @@
 # Lobby connection checklist
 
-Taken from VelocityGameConnection.md. We go through it one step at a time, top to bottom. Section 1 protects player data, so it comes first.
-
-Steps marked **(needs lobby files)** copy code from the lobby place, which is not in this repo yet. Bring those files in first (Save to File from the lobby, or paste them in).
+Taken from VelocityGameConnection.md. Section 1 protects player data, so it came first.
 
 ## 1. Save safety
-- [x] 1.1 `SaveVersion` and the double load guard, written into the game's DataManager to match the doc. When the lobby's DataManager is in the repo, diff the two and make them identical **(needs lobby files for the final check)**
-- [x] 1.2 `LobbyLink.SendToLobby`: after `DataManager.Save(Player)`, set `Payload.SaveVersion = DataManager.Get(Player, "SaveVersion")`
-- [x] 1.3 Check `PlayerManager.Init` can no longer load a player twice (comes with 1.1)
+- [x] 1.1 The game's DataManager is now the lobby's (`SaveVersion`, the version wait, the double load guard) plus two fixes the lobby should copy back: a save that fails to load is never written over, and a player who leaves mid load keeps nothing
+- [x] 1.2 `LobbyLink.SendToLobby` sends `SaveVersion` after saving
+- [x] 1.3 `PlayerManager.Init` can no longer load a player twice
 - [ ] 1.4 Later, in both places at once: session locked saves (ProfileStore or `UpdateAsync` with a lock)
 
 ## 2. One save template
-- [ ] 2.1 Copy the lobby's `PlayerDataTemplate` over the game's so both have the same keys. The stat keys from section 8 are already added **(needs lobby files)**
+- [x] 2.1 The game's `PlayerDataTemplate` is now the lobby's
 
-## 3. Shared modules (copy whole from the lobby) **(needs lobby files)**
-- [ ] 3.1 `GameText` (with all children) and `UIIcons`
-- [ ] 3.2 `CoreData`
-- [ ] 3.3 `EquipmentData`
-- [ ] 3.4 `CharacterStats`
-- [ ] 3.5 `Keybinds`
-- [ ] 3.6 `SkinData`, `SkinBuilder`, `CoreTag`, `GemIcon`
-- [ ] 3.7 `Leveling`
-- [ ] 3.8 `StarterCharacterScripts.Client` and `MOVEMENT_INPUTS`
+## 3. Shared modules (copied whole from the lobby)
+- [x] 3.1 `GameText` (with all children) and `UIIcons`
+- [x] 3.2 `CoreData`
+- [x] 3.3 `EquipmentData`
+- [x] 3.4 `CharacterStats`
+- [x] 3.5 `Keybinds`
+- [x] 3.6 `SkinData`, `SkinBuilder`, `CoreTag`, `GemIcon`
+- [x] 3.7 `Leveling`
+- [ ] 3.8 `StarterCharacterScripts.Client` and `MOVEMENT_INPUTS` (StarterCharacterScripts is not in the Rojo project, so this is a Studio copy, or add it to `default.project.json`)
 - [ ] 3.9 Give the shared modules one folder in the Rojo project so both places sync from it
 
 ## 4. Gear and core stats in a run
-- [x] 4.1 `Server.Game.Core.RunStats` uses `CharacterStats.Compute` and `ForRun`, and gives neutral numbers until CharacterStats is copied in. Passes are always empty for now
+- [x] 4.1 `Server.Game.Core.RunStats` uses `CharacterStats.Compute` and `ForRun`. Passes are always empty for now
 - [x] 4.2 `MaxHealth`, `MaxEnergy` into `PlayerStats.new` overrides in `RunSetup`
 - [x] 4.3 Health and energy regen per player in `EnergyService` (plus Ruby's no regen in combat)
 - [x] 4.4 Weapon and ability damage multipliers in `DamageService`
 - [x] 4.5 Crits in `DamageService`
-- [x] 4.6 Damage taken multipliers (overall and melee, fire, magic). Hits now carry `DamageType`: enemy melee is Melee, Burning is Fire, the Necromancer's bolts are Magic. Tag other attacks in EnemyData with `DamageType`
+- [x] 4.6 Damage taken multipliers (overall and melee, fire, magic). Enemy melee is Melee, Burning is Fire, the Necromancer's bolts are Magic. Tag other attacks in EnemyData with `DamageType`
 - [x] 4.7 Knockback multiplier and ignore knockback chance
 - [x] 4.8 Split cooldown multiplier into weapon and ability
 - [x] 4.9 `SpeedMultiplier` through `SetSpeedMultiplier("Gear", ...)`
@@ -40,31 +38,31 @@ Steps marked **(needs lobby files)** copy code from the lobby place, which is no
 - [x] 4.13 `ExpMultiplier`, `CashMultiplier` at the end of a run
 
 ## 5. Keys in the game
-- [ ] 5.1 Load `Keybinds` on the client from `DataUpdated` (first listener)
-- [ ] 5.2 `CombatInput` attack, alt attack and swap use `Keybinds.Is`
-- [ ] 5.3 `AbilityInput` use and swap use `Keybinds.Is`
-- [ ] 5.4 HUD key labels use `Keybinds.Label` and refresh on change
-- [ ] 5.5 Prompt key (gates and shop) set on the client from `Keybinds.Get("Interact")`
-- [ ] 5.6 Movement binds from `Keybinds` (comes with 3.8)
-- [ ] 5.7 Core ultimate bound to `Keybinds.Get("Ultimate")`
-- [ ] 5.8 Ignore keys while `Keybinds.IsCapturing()`
+- [x] 5.1 `KeybindController` loads `Keybinds` from `DataUpdated`, started first
+- [x] 5.2 `CombatInput` attack, alt attack and swap use `Keybinds.Is`
+- [x] 5.3 `AbilityInput` use and swap use `Keybinds.Is`
+- [x] 5.4 HUD key labels and the area banner's "hold Z" use `Keybinds.Label` and refresh on change
+- [x] 5.5 Prompt key (gates and shop) set on the client from `Keybinds.Get("Interact")`
+- [ ] 5.6 Movement: the player's keys are written into `MovementSettings.Keybinds.Keyboard`, which works for any script that reads that table when it binds. The full fix comes with 3.8
+- [ ] 5.7 Core ultimate bound to `Keybinds.Get("Ultimate")` (no ultimate in the game yet)
+- [x] 5.8 Ignore keys while `Keybinds.IsCapturing()`
 
 ## 6. Gear drops
-- [ ] 6.1 Server side `Grant` (GUID id, `MaxItems` cap turns extras into Scrap, `DataManager.Set`)
-- [ ] 6.2 Drop tables per map and difficulty, following the gameplan
-- [ ] 6.3 Tell the player (toast or results screen)
+- [x] 6.1 `Server.Game.Core.GearService.Grant` (GUID id, `MaxItems` cap turns extras into Scrap)
+- [x] 6.2 Drop pools per map and the Easy rarity cap in `GameConfig.Gear`. Enemies 2% for the killer, the boss one for everyone. Tune these to the gameplan
+- [x] 6.3 A toast tells the player what they found
 
 ## 7. Teleport data
-- [x] 7.1 `TeleportDataReader` now also reads `Map` (falls back to `GameConfig.Run.DefaultMap`). Check the lobby sends the same map names
-- [x] 7.2 Game to lobby payload carries `SaveVersion` (same as 1.2)
+- [x] 7.1 `TeleportDataReader` reads `Map` (falls back to `GameConfig.Run.DefaultMap`)
+- [x] 7.2 Game to lobby payload carries `SaveVersion`
 
 ## 8. End of a run
 - [x] 8.1 `Deaths`, `Parries` (one per Sword swing that deflects something). `PerfectParries` waits until the game has a parry window
 - [x] 8.2 `MapBest[Map][Difficulty]`, `MapRuns[Map]`
-- [x] 8.3 `CoreTime`, `CoreRuns` (only once the save has `Core`, from the lobby template). `Cores[Core]` Enlightenment still to do, needs CoreData
+- [x] 8.3 `CoreTime`, `CoreRuns`, and `Cores[Core]` Enlightenment (1 per EXP earned, `GameConfig.Cores.EnlightenmentPerExp`)
 - [x] 8.4 `WeaponKills`, `AbilityUses`
-- [ ] 8.5 `PlayTime` and Timebux for time in the game place
-- [ ] 8.6 `OwnedSkins.Noob` / `OwnedSkins.Guest` for beating the Guest in Retroscity
+- [x] 8.5 `PlayTime` in seconds. Timebux is ready but off until `GameConfig.Timebux.SecondsPerTimebux` is set to the lobby's value
+- [ ] 8.6 `OwnedSkins.Noob` / `OwnedSkins.Guest` for beating the Guest in Retroscity (needs the RetroCity map and Guest boss)
 
 ## 9. Testing the whole loop
 - [ ] 9.1 Fresh save: character screen, run, back to lobby, everything kept
@@ -74,6 +72,6 @@ Steps marked **(needs lobby files)** copy code from the lobby place, which is no
 - [ ] 9.5 Two player squad with different keys and gear
 
 ## Other
-- [x] A save that fails to load is never written over (the template would have replaced the real save). The lobby should get this too
+- [x] Quitting the game mid run now pays out like a loss (it used to save nothing)
 - [x] `RunSetup.DataLoadTimeout` raised from 10 to 20 seconds so the version wait cannot run past it
 - [x] Move the area banner and toasts down a little (`RoomBannerController.Settings.PopupDrop`)

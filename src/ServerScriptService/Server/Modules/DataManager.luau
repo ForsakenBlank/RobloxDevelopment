@@ -7,6 +7,16 @@
 -- ReplicatedStorage.Modules.Shared. This module handles the rest
 -- automatically, including filling it in for players who already
 -- have a save from before that variable existed.
+--
+-- The lobby and the game place share this save, and a player moves
+-- between them by teleport. Every save is stamped with SaveVersion, one
+-- higher each time it is written. The place that sends a player on
+-- saves first and puts that number in the teleport data (SaveVersion at
+-- the top, or in Loadouts[UserId] for a squad, see GameManager); Load
+-- then waits for a copy at least that new, reading past the DataStore
+-- cache, so a player never plays on (and later saves over) an old copy.
+-- The game place's DataManager must do the same (see
+-- VelocityGameConnection.md, next to VelocityBuildPlan.md).
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
@@ -54,16 +64,15 @@ end
 
 local AUTOSAVE_INTERVAL = 120
 local MAX_ATTEMPTS = 3
-
--- how long to keep re-reading a save that is older than the teleport data says it should be
-local VERSION_WAIT = 12
-local VERSION_RETRY = 1.5
+-- How many times, and how far apart, Load reads again while the save it
+-- got is older than the one the last place said it wrote.
+local VERSION_TRIES = 8
+local VERSION_DELAY = 1.5
 
 local sessionData = {}
 local dataLoaded = {}
--- players whose load is running, so a second Load waits for the first instead of starting over
 local loading = {}
--- players whose save could not be read, so the template never gets written over their real data
+-- players whose save could not be read, so the template never gets written over their real save
 local noSave = {}
 
 local function deepCopy(original)
@@ -114,71 +123,93 @@ local function attempt(callback)
 	return false, nil
 end
 
--- the SaveVersion the other place wrote right before teleporting this player here, or 0 if there was none
-local function expectedVersion(player)
-	local ok, joinData = pcall(function()
-		return player:GetJoinData()
-	end)
-	local teleportData = ok and type(joinData) == "table" and joinData.TeleportData
-	if type(teleportData) ~= "table" then
-		return 0
-	end
-
-	local version = teleportData.SaveVersion
-	if type(version) ~= "number" and type(teleportData.Loadouts) == "table" then
-		local mine = teleportData.Loadouts[tostring(player.UserId)] or teleportData.Loadouts[player.UserId]
-		version = type(mine) == "table" and mine.SaveVersion
-	end
-
-	return type(version) == "number" and version or 0
-end
-
 local function fireUpdate(player, variableName, value)
 	dataUpdatedRemote:FireClient(player, variableName, value)
 end
 
-function DataManager.Load(player)
-	local userId = player.UserId
-
-	-- only ever load a player once, a second call just waits for the first
-	if dataLoaded[userId] then
-		return sessionData[userId]
+-- The SaveVersion the place that sent this player here said it saved,
+-- from the teleport data, or nil. (Teleport data can be faked by a
+-- client; the worst a fake number does is make Load wait a little.)
+local function expectedVersion(player)
+	local ok, joinData = pcall(function()
+		return player:GetJoinData()
+	end)
+	local data = ok and type(joinData) == "table" and joinData.TeleportData
+	if type(data) ~= "table" then
+		return nil
 	end
-	if loading[userId] then
-		while loading[userId] do
-			task.wait()
+	local version = data.SaveVersion
+	if type(data.Loadouts) == "table" then
+		local mine = data.Loadouts[tostring(player.UserId)]
+		if type(mine) == "table" and mine.SaveVersion ~= nil then
+			version = mine.SaveVersion
 		end
-		return sessionData[userId]
 	end
-	loading[userId] = true
+	if type(version) ~= "number" or version ~= version then
+		return nil
+	end
+	return version
+end
 
-	local key = "Player_" .. userId
+-- Reads past the DataStore's few seconds of caching, so a save written
+-- by another server a moment ago is seen.
+local function readOptions()
+	local ok, options = pcall(function()
+		local made = Instance.new("DataStoreGetOptions")
+		made.UseCache = false
+		return made
+	end)
+	return ok and options or nil
+end
+
+local function versionOf(saved)
+	return type(saved) == "table" and tonumber(saved.SaveVersion) or 0
+end
+
+function DataManager.Load(player)
+	-- One load per player. PlayerManager can ask twice for a player who
+	-- joins as the server starts (PlayerAdded and its loop over players
+	-- already in), and a second load would replace the first one's data
+	-- after other services have already changed it.
+	if dataLoaded[player.UserId] then
+		return sessionData[player.UserId]
+	end
+	if loading[player.UserId] then
+		while loading[player.UserId] and player.Parent == Players do
+			task.wait(0.1)
+		end
+		return sessionData[player.UserId]
+	end
+	loading[player.UserId] = true
+
+	local key = "Player_" .. player.UserId
 
 	local live = store()
 
 	local success, result = false, nil
 	if live then
+		local options = readOptions()
 		success, result = attempt(function()
-			return live:GetAsync(key)
+			return live:GetAsync(key, options)
 		end)
 
-		-- the save from the other place can still be on its way, so skip the cache and read again until it shows up
-		local wanted = expectedVersion(player)
-		local giveUpAt = os.clock() + VERSION_WAIT
-		while success and wanted > 0 and os.clock() < giveUpAt and player.Parent == Players do
-			local version = type(result) == "table" and result.SaveVersion or 0
-			if version >= wanted then
-				break
+		-- Wait for the copy the last place saved (see the top).
+		local expected = expectedVersion(player)
+		if success and expected then
+			local tries = 0
+			while versionOf(result) < expected and tries < VERSION_TRIES and player.Parent == Players do
+				tries += 1
+				task.wait(VERSION_DELAY)
+				local ok, newer = attempt(function()
+					return live:GetAsync(key, options)
+				end)
+				if ok and versionOf(newer) >= versionOf(result) then
+					result = newer
+				end
 			end
-			task.wait(VERSION_RETRY)
-			success, result = attempt(function()
-				local options = Instance.new("DataStoreGetOptions")
-				options.UseCache = false
-				return live:GetAsync(key, options)
-			end)
-		end
-		if success and wanted > 0 and (type(result) ~= "table" or (result.SaveVersion or 0) < wanted) then
-			warn("DataManager: " .. player.Name .. "'s save is older than expected (wanted version " .. wanted .. "), loading it anyway")
+			if versionOf(result) < expected then
+				warn("DataManager: " .. player.Name .. "'s save is version " .. versionOf(result) .. ", the last place saved version " .. expected .. ". Using the newest copy found.")
+			end
 		end
 	end
 
@@ -188,21 +219,21 @@ function DataManager.Load(player)
 	else
 		if live and not success then
 			warn("DataManager: giving up loading data for " .. player.Name .. ", using template and not saving this session")
-			noSave[userId] = true
+			noSave[player.UserId] = true
 		end
 		data = deepCopy(PlayerDataTemplate)
 	end
 
-	loading[userId] = nil
+	loading[player.UserId] = nil
 
-	-- they left while we were loading, Release already ran so keep nothing
+	-- they left while this was loading and Release already ran, so keep nothing
 	if player.Parent ~= Players then
-		noSave[userId] = nil
+		noSave[player.UserId] = nil
 		return data
 	end
 
-	sessionData[userId] = data
-	dataLoaded[userId] = true
+	sessionData[player.UserId] = data
+	dataLoaded[player.UserId] = true
 
 	return data
 end
@@ -213,6 +244,7 @@ function DataManager.Save(player)
 		return
 	end
 
+	-- the real save is still out there, so never write the template over it
 	if noSave[player.UserId] then
 		return
 	end
@@ -224,8 +256,9 @@ function DataManager.Save(player)
 		return
 	end
 
-	-- every write gets a higher number, so the next place can tell if it read an old copy
-	data.SaveVersion = (data.SaveVersion or 0) + 1
+	-- See the top. Counted even if the write fails, so the next one is
+	-- still newer than anything already out there.
+	data.SaveVersion = versionOf(data) + 1
 
 	local success = attempt(function()
 		live:SetAsync(key, data)

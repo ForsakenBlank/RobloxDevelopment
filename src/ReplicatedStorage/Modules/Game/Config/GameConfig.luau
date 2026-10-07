@@ -268,6 +268,67 @@ GameConfig.Run = {
 }
 
 ----------------------------------------------------------------------
+-- GEAR DROPS
+----------------------------------------------------------------------
+
+-- the items and their stats are in the lobby's Shared.EquipmentData, this is only where they drop
+GameConfig.Gear = {
+	Enabled = true,
+	-- chance a normal enemy drops a piece for its killer (a summon's lower reward lowers this too)
+	EnemyDropChance = 0.02,
+	-- the highest rarity each difficulty can drop, missing means no cap
+	MaxRarity = {
+		Easy = "Rare",
+	},
+	-- item keys from EquipmentData.Items that can drop on each map (GameText.Maps keys)
+	Pools = {
+		VeloCITY = {
+			Enemy = {
+				"CourierCap", "CourierJacket", "CourierSneakers",
+				"DeliveryBag", "CourierWatch", "Sunglasses", "IdLanyard", "Wristband", "MetroCard",
+			},
+			-- the Street set is the rare map 1 set, so only the boss drops it
+			Boss = {
+				"CourierCap", "CourierJacket", "CourierSneakers",
+				"HoodieHood", "StreetHoodie", "HeavyBoots",
+				"DeliveryBag", "CourierWatch", "Sunglasses", "IdLanyard", "Wristband", "MetroCard",
+			},
+		},
+		RetroCity = {
+			Enemy = {
+				"NoobCap", "NoobShirt", "NoobShoes",
+				"ClassicCola", "BrickBadge", "TixCoin", "OldSchoolVisor", "BuilderToolBelt",
+				"ObbyMedal", "CursorPin", "OrangeShades", "StudsChain",
+			},
+			Boss = {
+				"BrickHelmet", "ClassicTorso", "PlankBoots",
+				"NoobCap", "NoobShirt", "NoobShoes",
+				"ClassicCola", "BrickBadge", "TixCoin", "OldSchoolVisor", "BuilderToolBelt",
+				"ObbyMedal", "CursorPin", "OrangeShades", "StudsChain",
+			},
+		},
+	},
+}
+
+----------------------------------------------------------------------
+-- CORES
+----------------------------------------------------------------------
+
+GameConfig.Cores = {
+	-- Enlightenment the active core gets per EXP earned in a run (CoreData levels need 200, 300, 400...)
+	EnlightenmentPerExp = 1,
+}
+
+----------------------------------------------------------------------
+-- TIMEBUX
+----------------------------------------------------------------------
+
+-- must match the lobby's GameConfig.Timebux, 0 pays no Timebux here (PlayTime still counts)
+GameConfig.Timebux = {
+	SecondsPerTimebux = 0,
+}
+
+----------------------------------------------------------------------
 -- LOBBY (THE WAY IN AND OUT)
 ----------------------------------------------------------------------
 

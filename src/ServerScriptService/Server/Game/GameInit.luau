@@ -67,6 +67,8 @@ local GameInit = {}
 -- Uncomment each line as that module gets written.
 local Services = {
 	{ Name = "RunSetup", Module = Game.Core.RunSetup },
+	-- PlayTime and Timebux for time spent here
+	{ Name = "PlayTimeService", Module = Game.Core.PlayTimeService },
 	{ Name = "EnergyService", Module = Game.Combat.EnergyService },
 	{ Name = "StatusEffectService", Module = Game.Effects.StatusEffectService },
 	{ Name = "ProjectileService", Module = Game.Combat.ProjectileService },
@@ -79,6 +81,8 @@ local Services = {
 	{ Name = "GateController", Module = Game.Rooms.GateController },
 	{ Name = "KillPlanes", Module = Game.Rooms.KillPlanes },
 	{ Name = "RoomManager", Module = Game.Rooms.RoomManager },
+	-- gear drops from enemies and the boss
+	{ Name = "GearService", Module = Game.Core.GearService },
 	-- The way back to the lobby, before RunManager which uses it.
 	{ Name = "LobbyLink", Module = Game.Core.LobbyLink },
 	-- RunManager goes last. RunSetup starts it once the players are in,

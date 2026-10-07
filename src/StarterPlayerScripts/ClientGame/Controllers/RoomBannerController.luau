@@ -71,6 +71,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Modules.Game.Config.GameConfig)
 local CombatFX = require(ReplicatedStorage.Modules.Game.Shared.CombatFX)
 local UIFade = require(script.Parent.Parent.UI.UIFade)
+local Keybinds = require(ReplicatedStorage.Modules.Shared.Keybinds)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local Events = Remotes:WaitForChild("Events")
@@ -93,10 +94,11 @@ RoomBannerController.Settings = {
 		Boss = Color3.fromRGB(255, 60, 60),
 	},
 	-- The line under the title when an area starts, by kind.
+	-- {Interact} becomes the player's interact key.
 	StartLines = {
-		Spawn = "Press L to pick your loadout, then hold Z at the yellow gate",
+		Spawn = "Hold {Interact} at the yellow gate when you're ready",
 		Combat = "Clear every wave!",
-		Shop = "Spend your money, then hold Z at the gate",
+		Shop = "Spend your money, then hold {Interact} at the gate",
 		Boss = "Defeat the boss!",
 	},
 	ClearedTitle = "CLEARED!",
@@ -200,7 +202,8 @@ local function OnRoomEntered(Info)
 		RoomBannerController.Show(Text, "Starting...", Colour, nil)
 	elseif Info.Phase == "Start" then
 		CountdownEndsAt = nil
-		RoomBannerController.Show(Text, Settings.StartLines[Info.Kind] or "", Colour, GameConfig.Rooms.BannerDuration)
+		local Line = string.gsub(Settings.StartLines[Info.Kind] or "", "{Interact}", Keybinds.Label("Interact"))
+		RoomBannerController.Show(Text, Line, Colour, GameConfig.Rooms.BannerDuration)
 	elseif Info.Phase == "Cleared" then
 		CountdownEndsAt = nil
 		if Info.Kind == "Combat" or Info.Kind == "Boss" then
