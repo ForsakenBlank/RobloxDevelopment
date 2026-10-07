@@ -68,7 +68,11 @@ function GameManager:network()
 end
 
 function GameManager:onPlayerLeaving(player : Player)
-	workspace.ClientFX[player.Name]:Destroy()
+	local folder = workspace:FindFirstChild("ClientFX")
+	local mine = folder and folder:FindFirstChild(player.Name)
+	if mine then
+		mine:Destroy()
+	end
 end
 
 return GameManager

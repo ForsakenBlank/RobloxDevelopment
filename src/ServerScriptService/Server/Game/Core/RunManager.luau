@@ -653,6 +653,8 @@ function RunManager.Reset()
 		if Generation ~= MyGeneration then
 			return
 		end
+		-- a new run is scaled for whoever is here now
+		RunSetup.Recount(true)
 		RoomManager.Start()
 		SetState("Playing")
 	end)

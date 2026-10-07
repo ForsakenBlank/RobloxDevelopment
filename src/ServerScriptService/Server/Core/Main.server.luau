@@ -12,16 +12,8 @@ local PlayerManager = require(Modules.PlayerManager)
 local LeaderstatsManager = require(Modules.LeaderstatsManager)
 local AntiCheat = require(Modules.AntiCheat)
 local GameManager = require(Modules.GameManager)
---asdasd
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- the movement network (Shared.GameManager) is started once by ServerScriptService.GameManager, starting it here too doubled every effect and trail
 
-local Modules = ReplicatedStorage.Modules
-local SharedModules = Modules.Shared
-local NetworkModules = SharedModules.Network
-
-local GameManager2 = require(SharedModules.GameManager)
-GameManager2.new()
---asdasd
 DataManager.Init()
 PlayerManager.Init()
 LeaderstatsManager.Init()

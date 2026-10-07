@@ -17,7 +17,7 @@ Config.SampleRate = 5
 -- Anything inside these Workspace folders is invisible to the
 -- position and noclip checks. Put decorative or non solid things
 -- here so they can never be mistaken for a wall.
-Config.IgnoredWorkspaceFolders = { "Effects" }
+Config.IgnoredWorkspaceFolders = { "Effects", "Runtime", "ClientFX" }
 
 Config.Movement = {
 	Enabled = true,

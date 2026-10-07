@@ -103,6 +103,9 @@ RunSetup.Settings = {
 
 local Started = false
 local SetupPlayers: { [Player]: boolean } = {}
+-- the difficulty the run was locked in with, for recounting players
+local LockedDifficulty: string? = nil
+local LockedFromLobby = false
 
 ----------------------------------------------------------------------
 -- PER PLAYER
@@ -195,6 +198,8 @@ local function LockIn()
 
 	local Settings = RunConfig.Build(DifficultyName, PlayerCount)
 	Settings.FromLobby = LobbyData ~= nil
+	LockedDifficulty = DifficultyName
+	LockedFromLobby = Settings.FromLobby
 	RunConfig.Set(Settings)
 
 	local Run = RunConfig.Get()
@@ -209,6 +214,31 @@ local function LockIn()
 	require(script.Parent.RunManager).Start()
 end
 
+-- Counts the players again while it is safe to: in Spawn, before any
+-- enemy has been scaled, or when a run restarts (AllowLower). A friend
+-- who loads in a few seconds late then still gets a run scaled for
+-- them.
+function RunSetup.Recount(AllowLower: boolean?)
+	if not Started or not RunConfig.IsSet() then
+		return
+	end
+	local RoomManager = require(script.Parent.Parent.Rooms.RoomManager)
+	if not AllowLower and RoomManager.GetCurrentIndex() > 1 then
+		return
+	end
+	local Count = math.max(1, #Players:GetPlayers())
+	local Old = RunConfig.Get()
+	if Count == Old.PlayerCount or (Count < Old.PlayerCount and not AllowLower) then
+		return
+	end
+	local Settings = RunConfig.Build(LockedDifficulty, Count)
+	Settings.FromLobby = LockedFromLobby
+	RunConfig.Set(Settings)
+	print(string.format("[RunSetup] player count is now %d, enemy health x%.2f", Settings.PlayerCount, Settings.EnemyHealthMultiplier))
+	local RunManager = require(script.Parent.RunManager)
+	RunStateChanged:FireAllClients(RunManager.GetPayload())
+end
+
 function RunSetup.Init()
 	-- RunManager replaces this with the full run state when it starts.
 	GetRunState.OnServerInvoke = function()
@@ -217,9 +247,10 @@ function RunSetup.Init()
 
 	Players.PlayerAdded:Connect(function(Player)
 		if Started then
-			-- A late joiner still gets stats, but the player count is
-			-- not recounted, see the note at the top.
+			-- A late joiner still gets stats. The player count is only
+			-- recounted while the run is still in Spawn.
 			task.spawn(RunSetup.SetupPlayer, Player)
+			RunSetup.Recount(false)
 		end
 	end)
 

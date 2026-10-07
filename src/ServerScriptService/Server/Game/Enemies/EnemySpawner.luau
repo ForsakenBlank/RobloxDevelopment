@@ -87,6 +87,8 @@ EnemySpawner.Settings = {
 	PlayerGroup = "Players",
 	EnemiesCollideWithEachOther = false,
 	EnemiesCollideWithPlayers = true,
+	-- players walk through each other, so a teammate never blocks a doorway or flings you mid dash
+	PlayersCollideWithEachOther = false,
 	-- The group a player's own client moves their character into while
 	-- dashing or sliding (ClientGame.Controllers.CollisionController),
 	-- so a dash goes through a crowd instead of stopping dead in it.
@@ -156,6 +158,7 @@ local function SetupCollisionGroups()
 		end
 		PhysicsService:CollisionGroupSetCollidable(Settings.EnemyGroup, Settings.EnemyGroup, Settings.EnemiesCollideWithEachOther)
 		PhysicsService:CollisionGroupSetCollidable(Settings.EnemyGroup, Settings.PlayerGroup, Settings.EnemiesCollideWithPlayers)
+		PhysicsService:CollisionGroupSetCollidable(Settings.PlayerGroup, Settings.PlayerGroup, Settings.PlayersCollideWithEachOther)
 		if not PhysicsService:IsCollisionGroupRegistered(Settings.PassThroughGroup) then
 			PhysicsService:RegisterCollisionGroup(Settings.PassThroughGroup)
 		end

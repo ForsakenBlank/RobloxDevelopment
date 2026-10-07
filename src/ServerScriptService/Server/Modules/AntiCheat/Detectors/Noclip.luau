@@ -81,7 +81,8 @@ local function checkTrace(profile)
 	end
 
 	local result = workspace:Raycast(previous, delta, profile.raycastParams)
-	if not result or not result.Instance or not result.Instance.CanCollide then
+	-- dashing through an enemy or past a teammate is not noclipping
+	if not result or not result.Instance or not result.Instance.CanCollide or belongsToCharacter(result.Instance) then
 		profile.traceStreak = 0
 		return
 	end
