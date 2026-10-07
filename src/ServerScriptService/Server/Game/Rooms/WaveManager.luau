@@ -70,6 +70,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage.Modules.Game.Config.GameConfig)
 local WaveData = require(ReplicatedStorage.Modules.Game.Data.WaveData)
+local EnemyData = require(ReplicatedStorage.Modules.Game.Data.EnemyData)
 local RunConfig = require(ReplicatedStorage.Modules.Game.Shared.RunConfig)
 local EnemySpawner = require(script.Parent.Parent.Enemies.EnemySpawner)
 local RoomZones = require(script.Parent.RoomZones)
@@ -108,6 +109,27 @@ end
 local function WaveDelayMultiplier(): number
 	local Run = RunConfig.Get()
 	return Run and Run.Difficulty and Run.Difficulty.WaveDelay or 1
+end
+
+-- A copy of a wave with the difficulty's EnemyCount applied. Every type
+-- keeps at least one, and bosses are never multiplied.
+local function ScaledWave(Wave)
+	local Run = RunConfig.Get()
+	local Multiplier = Run and Run.Difficulty and Run.Difficulty.EnemyCount or 1
+	if Multiplier == 1 then
+		return Wave
+	end
+	local Copy = table.clone(Wave)
+	Copy.Enemies = {}
+	for TypeName, Count in pairs(Wave.Enemies) do
+		local Data = EnemyData.Enemies[TypeName]
+		if Data and Data.IsBoss then
+			Copy.Enemies[TypeName] = Count
+		else
+			Copy.Enemies[TypeName] = math.max(1, math.floor(Count * Multiplier + 0.5))
+		end
+	end
+	return Copy
 end
 
 -- Kills wave enemies that have spent too long outside their area.
@@ -210,6 +232,8 @@ function WaveManager.Start(AreaName: string, OnCleared: () -> ()): boolean
 				end
 			end
 
+			-- the difficulty's enemy count, worked out once so the spawner and the count agree
+			Wave = ScaledWave(Wave)
 			local Count = WaveData.CountEnemies(Wave)
 			local Dead = 0
 			local Threshold = IsLast and Count or math.ceil(Count * (WaveData.Defaults.NextWaveAtRemaining or 1))

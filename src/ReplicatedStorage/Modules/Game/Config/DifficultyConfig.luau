@@ -5,11 +5,8 @@
 	entry holds the multipliers that difficulty changes: enemy health,
 	enemy damage, money earned per kill and shop prices.
 
-	"Normal" is the only one switched on, with every multiplier at 1.
-	Easy and Hard are written in but Enabled = false, so the lobby's
-	difficulty picker can turn them on later without anything else in
-	the game needing to change, because every system already reads its
-	multiplier from here.
+	Easy, Normal and Hard are all switched on. The lobby's picker sends
+	the name, and every system reads its multiplier from here.
 ]]
 
 --[[
@@ -53,42 +50,66 @@ DifficultyConfig.Default = "Normal"
 --   WaveDelay          multiplier on the delay between waves, so
 --                      harder difficulties can send waves faster
 --   PlayerRegen        multiplier on the player's energy regen
+--   EnemyCount         multiplier on how many enemies each wave has
+--                      (bosses are never doubled)
+--   EnemySpeed         multiplier on enemy walk speed
+--   EnemyWindUp        multiplier on enemy attack wind ups, lower is
+--                      less time to dodge
+--   EnemyCooldown      multiplier on enemy attack cooldowns
+--   MeleeAttackers     how many enemies can swing at one player at once
+--   Exp                multiplier on the EXP a run pays
 DifficultyConfig.Difficulties = {
-
 	Easy = {
-		Enabled = false,
+		Enabled = true,
 		DisplayName = "Easy",
-		Description = "Weaker enemies and cheaper shops.",
-		EnemyHealth = 0.75,
-		EnemyDamage = 0.75,
-		Money = 0.8,
+		Description = "Fewer, weaker, slower enemies that give you more time to dodge. Good for learning a map.",
+		EnemyHealth = 0.7,
+		EnemyDamage = 0.6,
+		Money = 1,
 		ShopPrice = 0.8,
-		WaveDelay = 1.25,
-		PlayerRegen = 1.25,
+		WaveDelay = 1.3,
+		PlayerRegen = 1.4,
+		EnemyCount = 0.75,
+		EnemySpeed = 0.9,
+		EnemyWindUp = 1.25,
+		EnemyCooldown = 1.2,
+		MeleeAttackers = 1,
+		Exp = 0.75,
 	},
-
 	Normal = {
 		Enabled = true,
 		DisplayName = "Normal",
-		Description = "The game as designed.",
-		EnemyHealth = 1,
-		EnemyDamage = 1,
+		Description = "The game as designed. You will need to dodge.",
+		EnemyHealth = 1.15,
+		EnemyDamage = 1.2,
 		Money = 1,
 		ShopPrice = 1,
-		WaveDelay = 1,
+		WaveDelay = 0.9,
 		PlayerRegen = 1,
+		EnemyCount = 1.1,
+		EnemySpeed = 1,
+		EnemyWindUp = 1,
+		EnemyCooldown = 0.95,
+		MeleeAttackers = 2,
+		Exp = 1,
 	},
-
+	-- meant to need good gear: base stats should not get through it
 	Hard = {
-		Enabled = false,
+		Enabled = true,
 		DisplayName = "Hard",
-		Description = "Tougher enemies, faster waves, pricier shops.",
-		EnemyHealth = 1.5,
-		EnemyDamage = 1.5,
-		Money = 1.25,
-		ShopPrice = 1.25,
-		WaveDelay = 0.75,
-		PlayerRegen = 1,
+		Description = "Far tougher, faster, angrier enemies in bigger waves. Bring your best gear.",
+		EnemyHealth = 2.4,
+		EnemyDamage = 2.2,
+		Money = 1.3,
+		ShopPrice = 1.35,
+		WaveDelay = 0.6,
+		PlayerRegen = 0.6,
+		EnemyCount = 1.5,
+		EnemySpeed = 1.15,
+		EnemyWindUp = 0.8,
+		EnemyCooldown = 0.75,
+		MeleeAttackers = 3,
+		Exp = 1.6,
 	},
 }
 

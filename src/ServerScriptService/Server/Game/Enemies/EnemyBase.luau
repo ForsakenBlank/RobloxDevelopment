@@ -197,8 +197,13 @@ function EnemyBase.new(TypeName: string, Model: Model, Options: { [string]: any 
 	Humanoid.Health = self.MaxHealth
 	-- The speed before any sprint. EnemyAI sprints on top of this, and
 	-- the Boss raises it when it enrages.
-	self.BaseWalkSpeed = Data.WalkSpeed
-	Humanoid.WalkSpeed = Data.WalkSpeed
+	-- the difficulty's speed, wind up and cooldown on top of the enemy's own numbers
+	local Difficulty = Run and Run.Difficulty or {}
+	self.SpeedMultiplier = Difficulty.EnemySpeed or 1
+	self.WindUpMultiplier = Difficulty.EnemyWindUp
+	self.CooldownMultiplier = Difficulty.EnemyCooldown
+	self.BaseWalkSpeed = Data.WalkSpeed * self.SpeedMultiplier
+	Humanoid.WalkSpeed = self.BaseWalkSpeed
 	Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	Humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	Humanoid.BreakJointsOnDeath = false

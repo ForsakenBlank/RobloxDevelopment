@@ -167,12 +167,17 @@ function Teleport:OnUse(Context)
 		local Hits = HitDetection.Sphere(Destination, Strike.Radius, { Side = "Enemies", Origin = Destination })
 		for _, Hit in ipairs(Hits) do
 			local Damage = StatFormulas.FalloffDamage(Strike.Damage, Hit.Distance, Strike.Radius, Strike.Falloff)
-			DamageService.ApplyDamage(Hit.Model, Damage, Context.Player, {
+			local _, Killed = DamageService.ApplyDamage(Hit.Model, Damage, Context.Player, {
 				Source = self.Name,
 				Knockback = Strike.Knockback,
 				From = Destination,
 				HitSound = "SwordHit",
 			})
+			-- a short stun, so blinking in is a real opening
+			if not Killed and (Strike.Stun or 0) > 0 then
+				local StatusEffectService = require(script.Parent.Parent.Parent.Effects.StatusEffectService)
+				StatusEffectService.Apply(Hit.Model, "Stun", Strike.Stun, nil, Context.Player)
+			end
 		end
 	end
 

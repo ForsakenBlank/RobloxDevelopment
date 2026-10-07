@@ -57,6 +57,7 @@ local AbilityBase = require(script.Parent.AbilityBase)
 local PlayerStats = require(script.Parent.Parent.Parent.Core.PlayerStats)
 local StatusEffectService = require(script.Parent.Parent.Parent.Effects.StatusEffectService)
 local RunStats = require(script.Parent.Parent.Parent.Core.RunStats)
+local StatusEffectData = require(ReplicatedStorage.Modules.Game.Data.StatusEffectData)
 
 local HealBurst = setmetatable({}, { __index = AbilityBase })
 HealBurst.__index = HealBurst
@@ -118,7 +119,7 @@ function HealBurst:OnUse(Context)
 		if Player.Character then
 			DamageService.ApplyHeal(Player.Character, Data.HealAmount * Boost)
 			if Data.Regen and Data.Regen.Enabled then
-				StatusEffectService.Apply(Player, "Regeneration", Data.Regen.Duration, Data.Regen.AmountPerTick * Boost, Context.Player)
+				StatusEffectService.Apply(Player, "Regeneration", Data.Regen.Duration, (Data.Regen.AmountPerTick or StatusEffectData.Effects.Regeneration.AmountPerTick) * Boost, Context.Player)
 			end
 			Healed += 1
 		end

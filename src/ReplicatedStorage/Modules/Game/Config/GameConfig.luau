@@ -170,7 +170,7 @@ GameConfig.Loadout = {
 GameConfig.Rewards = {
 	-- Every kill reward from EnemyData is multiplied by this before the
 	-- difficulty multiplier. A quick global knob for the economy.
-	MoneyMultiplier = 1,
+	MoneyMultiplier = 0.35,
 
 	-- "Killer" gives it only to whoever got the last hit, which is
 	-- the design. "Everyone" gives the full reward to every player in
@@ -180,7 +180,7 @@ GameConfig.Rewards = {
 	-- Money handed to every player when an area is cleared, on top of
 	-- the kills. It keeps the whole team able to shop in multiplayer,
 	-- where kills only pay whoever lands them. 0 turns it off.
-	AreaClearBonus = 25,
+	AreaClearBonus = 15,
 	BossKillBonus = 0,
 }
 

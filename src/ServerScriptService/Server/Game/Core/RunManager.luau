@@ -435,6 +435,9 @@ local function SavePlayer(Player: Player, Won: boolean)
 	if not Won then
 		Exp = math.floor(Exp * Settings.ExpLossMultiplier)
 	end
+	-- harder difficulties pay more EXP
+	local Run = RunConfig.IsSet() and RunConfig.Get() or nil
+	Exp = Exp * (Run and Run.Difficulty and Run.Difficulty.Exp or 1)
 	-- gear and passes from the lobby
 	Cash = math.floor(Cash * (RunStats.Value(Player, "CashMultiplier") or 1))
 	Exp = math.floor(Exp * (RunStats.Value(Player, "ExpMultiplier") or 1))

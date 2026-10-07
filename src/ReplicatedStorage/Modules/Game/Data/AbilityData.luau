@@ -182,10 +182,10 @@ AbilityData.Abilities = {
 		-- Shown filling its cooldown slot on the HUD.
 		Emoji = "",
 		DisplayName = "Teleport",
-		Description = "Blink to your cursor and strike everything where you land. Brief invulnerability on arrival.",
+		Description = "Blink to your cursor and strike everything where you land, stunning it for a moment. Brief invulnerability on arrival.",
 		Icon = "rbxassetid://138500272033904",
-		EnergyCost = 15,
-		Cooldown = 3.5,
+		EnergyCost = 12,
+		Cooldown = 3,
 		CastTime = 0,
 		Animation = "Teleport",
 		Sound = "Teleport",
@@ -226,10 +226,12 @@ AbilityData.Abilities = {
 		-- every enemy within Radius of the arrival point. Damage 0
 		-- turns it off.
 		Strike = {
-			Damage = 35,
-			Radius = 11,
+			Damage = 45,
+			Radius = 14,
 			Knockback = 40,
 			Falloff = 0.6,
+			-- seconds every enemy the strike hits (and does not kill) is stunned for, 0 is none
+			Stun = 0.9,
 		},
 		-- Seconds the anti cheat is told to expect the jump in
 		-- position, through AntiCheat.Teleport.
@@ -245,29 +247,29 @@ AbilityData.Abilities = {
 		DisplayName = "Rage",
 		Description = "Trade a little health for more damage and speed. Your hits heal you while it lasts.",
 		Icon = "rbxassetid://96284078466719",
-		EnergyCost = 40,
-		Cooldown = 18,
+		EnergyCost = 35,
+		Cooldown = 15,
 		CastTime = 0.2,
 		Animation = "Rage",
 		Sound = "Rage",
 		CameraShake = { Intensity = 0.3, Duration = 0.2 },
 
 		-- Seconds the buff lasts.
-		Duration = 10,
+		Duration = 12,
 		-- Multiplier on all outgoing damage, applied through the
 		-- Damage status effect so it shows on the HUD.
-		DamageMultiplier = 1.5,
+		DamageMultiplier = 1.75,
 		-- Multiplier on walk speed for the duration. 1.25 is a quarter
 		-- faster. Goes through PlayerStats so the anti cheat is told.
-		SpeedMultiplier = 1.3,
+		SpeedMultiplier = 1.35,
 		-- Multiplier on every weapon and ability cooldown started while
 		-- raging. 0.6 means they recharge 40% faster.
-		CooldownMultiplier = 0.6,
+		CooldownMultiplier = 0.5,
 		-- Fraction of current health taken on use.
-		HealthCostPercent = 0.1,
+		HealthCostPercent = 0.08,
 		-- Fraction of all damage dealt while raging that comes back as
 		-- health, so the health cost is won back by fighting.
-		Lifesteal = 0.25,
+		Lifesteal = 0.35,
 		-- The cost can never take the player below this.
 		MinHealthAfterCost = 1,
 		-- true lets Rage be used again while it is already active,
@@ -285,8 +287,8 @@ AbilityData.Abilities = {
 		DisplayName = "Heal Burst",
 		Description = "Heal yourself and nearby teammates, then keep healing. Revives teammates who are down.",
 		Icon = "rbxassetid://1032918680",
-		EnergyCost = 45,
-		Cooldown = 20,
+		EnergyCost = 50,
+		Cooldown = 23,
 		CastTime = 0.3,
 		Animation = "HealBurst",
 		Sound = "HealBurst",
@@ -294,20 +296,20 @@ AbilityData.Abilities = {
 
 		-- Flat health given instantly to everyone it reaches. Clamped
 		-- to max health by PlayerStats.
-		HealAmount = 30,
+		HealAmount = 22,
 		-- Teammates within this many studs of the player are healed
 		-- too. 0 makes it self only.
 		Radius = 25,
 		-- Teammates who are down (spectating) inside the radius come
 		-- back with this fraction of their max health. 0 turns it off.
-		ReviveHealthPercent = 0.35,
+		ReviveHealthPercent = 0.3,
 		-- true means the player who used it is healed as well.
 		IncludeSelf = true,
 		-- The Regeneration effect left behind. Amount nil uses the
 		-- default per tick from StatusEffectData.
 		Regen = {
 			Enabled = true,
-			Duration = 5,
+			Duration = 4,
 			AmountPerTick = nil,
 		},
 		-- true lets it be used at full health, which is mostly a way to

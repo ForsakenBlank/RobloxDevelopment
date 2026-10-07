@@ -146,10 +146,10 @@ function Boss:CheckEnrage()
 	end
 	self.Enraged = true
 	self.DamageMultiplier = Enrage.DamageMultiplier
-	self.CooldownMultiplier = Enrage.CooldownMultiplier
-	self.WindUpMultiplier = Boss.Settings.EnragedWindUpMultiplier
+	self.CooldownMultiplier = Enrage.CooldownMultiplier * (self.CooldownMultiplier or 1)
+	self.WindUpMultiplier = Boss.Settings.EnragedWindUpMultiplier * (self.WindUpMultiplier or 1)
 	self.AttackRecovery = Enrage.AttackRecovery
-	self.BaseWalkSpeed = self.Data.WalkSpeed * Enrage.SpeedMultiplier
+	self.BaseWalkSpeed = self.Data.WalkSpeed * Enrage.SpeedMultiplier * (self.SpeedMultiplier or 1)
 	self.Humanoid.WalkSpeed = self.BaseWalkSpeed
 	self.WalkSpeedBeforeStun = self.Humanoid.WalkSpeed
 	CombatFX.Broadcast("Enemy_WindUp", self.Model, { Duration = 0.6, Kind = "Slam" })

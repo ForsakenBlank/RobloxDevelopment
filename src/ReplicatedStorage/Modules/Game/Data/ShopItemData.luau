@@ -153,7 +153,7 @@ ShopItemData.Items = {
 		Enabled = true,
 		DisplayName = "Health Potion",
 		Description = "Heals you to full health.",
-		Price = 50,
+		Price = 90,
 		Rarity = "Common",
 		UseType = "Inventory",
 		ModelName = "HealthPotion",
@@ -171,7 +171,7 @@ ShopItemData.Items = {
 		Enabled = true,
 		DisplayName = "Energy Potion",
 		Description = "Refills your energy completely.",
-		Price = 40,
+		Price = 70,
 		Rarity = "Common",
 		UseType = "Inventory",
 		ModelName = "EnergyPotion",
@@ -188,8 +188,8 @@ ShopItemData.Items = {
 	DamagePotion = {
 		Enabled = true,
 		DisplayName = "Damage Potion",
-		Description = "1.5x damage for 45 seconds.",
-		Price = 80,
+		Description = "2x damage for 75 seconds.",
+		Price = 190,
 		Rarity = "Rare",
 		UseType = "Inventory",
 		ModelName = "DamagePotion",
@@ -199,15 +199,15 @@ ShopItemData.Items = {
 		Sound = "PotionDrink",
 
 		Effect = "Damage",
-		Multiplier = 1.5,
-		Duration = 45,
+		Multiplier = 2,
+		Duration = 75,
 	},
 
 	Mushroom = {
 		Enabled = true,
 		DisplayName = "Mushroom",
-		Description = "A random effect for 30 seconds. Probably good.",
-		Price = 30,
+		Description = "A random effect for 60 seconds. Almost always good, and strong.",
+		Price = 110,
 		Rarity = "Common",
 		UseType = "Inventory",
 		ModelName = "Mushroom",
@@ -216,9 +216,9 @@ ShopItemData.Items = {
 		MaxPerRun = nil,
 		Sound = "PotionDrink",
 
-		Duration = 30,
+		Duration = 60,
 		-- Chance the roll comes from BadEffects instead of GoodEffects.
-		BadChance = 0.25,
+		BadChance = 0.12,
 		-- Names from StatusEffectData. Each is equally likely within
 		-- its list.
 		GoodEffects = { "Regeneration", "Damage", "Resistance" },
@@ -228,14 +228,18 @@ ShopItemData.Items = {
 		AmountOverrides = {
 			Fire = 4,
 			Poison = 2,
+			-- the good ones are stronger than the same effect from anywhere else
+			Regeneration = 4,
+			Damage = 1.75,
+			Resistance = 0.6,
 		},
 	},
 
 	Molotov = {
 		Enabled = true,
 		DisplayName = "Molotov",
-		Description = "Hold to aim, click to throw. Bursts into a big patch of fire that burns everything in it.",
-		Price = 60,
+		Description = "Hold to aim, click to throw it a long way. Bursts into a huge patch of fire that burns everything in it for 15 seconds.",
+		Price = 170,
 		Rarity = "Rare",
 		UseType = "Inventory",
 		ModelName = "Molotov",
@@ -245,32 +249,32 @@ ShopItemData.Items = {
 		Sound = "EnemyThrow",
 
 		-- Damage to everything in Radius the moment it bursts.
-		ImpactDamage = 40,
+		ImpactDamage = 70,
 		-- Damage per second to every enemy stood in the fire.
-		DamagePerSecond = 50,
+		DamagePerSecond = 75,
 		TickRate = 0.25,
-		Radius = 15,
-		Duration = 7,
+		Radius = 21,
+		Duration = 15,
 		-- Held ready when picked: the arm goes back and the arc is
 		-- drawn to where it will land (ClientGame.Controllers.
 		-- InventoryController), then a click throws it. Speed and
 		-- Gravity shape the arc, MaxRange caps how far it can be aimed.
 		-- The server throws with the same maths (Game.Shared.ThrowArc).
-		Throw = { Speed = 75, Gravity = 45, MaxRange = 140 },
+		Throw = { Speed = 110, Gravity = 45, MaxRange = 260 },
 		ProjectileModel = "Molotov",
 		-- Players stood in it take this fraction of the damage. 0 is
 		-- none.
 		FriendlyFire = 0,
 		-- Enemies that leave the area keep burning with this effect.
 		-- nil applies nothing on leaving.
-		LingerEffect = { Name = "Fire", Duration = 3 },
+		LingerEffect = { Name = "Fire", Duration = 5 },
 	},
 
 	HealthArtifact = {
 		Enabled = true,
 		DisplayName = "Heart Artifact",
-		Description = "+25 max health, for the rest of the run.",
-		Price = 120,
+		Description = "+40 max health, for the rest of the run.",
+		Price = 280,
 		Rarity = "Epic",
 		UseType = "Instant",
 		ModelName = "HealthArtifact",
@@ -279,7 +283,7 @@ ShopItemData.Items = {
 		MaxPerRun = nil,
 		Sound = "HealBurst",
 
-		MaxHealthBonus = 25,
+		MaxHealthBonus = 40,
 		-- true also heals by the same amount so the new max is full.
 		HealOnPickup = true,
 	},
@@ -287,8 +291,8 @@ ShopItemData.Items = {
 	EnergyArtifact = {
 		Enabled = true,
 		DisplayName = "Spark Artifact",
-		Description = "+25 max energy, for the rest of the run.",
-		Price = 120,
+		Description = "+40 max energy, for the rest of the run.",
+		Price = 240,
 		Rarity = "Epic",
 		UseType = "Instant",
 		ModelName = "EnergyArtifact",
@@ -297,33 +301,33 @@ ShopItemData.Items = {
 		MaxPerRun = nil,
 		Sound = "HealBurst",
 
-		MaxEnergyBonus = 25,
+		MaxEnergyBonus = 40,
 		RefillOnPickup = true,
 	},
 
 	SpeedArtifact = {
 		Enabled = true,
 		DisplayName = "Wind Artifact",
-		Description = "+2 walk speed, for the rest of the run.",
-		Price = 100,
+		Description = "+6 walk speed, for the rest of the run.",
+		Price = 230,
 		Rarity = "Rare",
 		UseType = "Instant",
 		ModelName = "SpeedArtifact",
 		Icon = "",
 		Weight = nil,
-		MaxPerRun = 3,
+		MaxPerRun = 2,
 		Sound = "HealBurst",
 
 		-- Added to the walk speed. Goes through PlayerStats so the anti
 		-- cheat and the movement framework both know about it.
-		WalkSpeedBonus = 2,
+		WalkSpeedBonus = 6,
 	},
 
 	JumpArtifact = {
 		Enabled = true,
 		DisplayName = "Feather Artifact",
 		Description = "+1 jump in the air, for the rest of the run.",
-		Price = 100,
+		Price = 210,
 		Rarity = "Rare",
 		UseType = "Instant",
 		ModelName = "JumpArtifact",
