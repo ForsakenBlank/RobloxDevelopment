@@ -3,6 +3,9 @@ local RunService = game:GetService("RunService")
 local CameraShake = {}
 CameraShake.__index = CameraShake
 
+-- false turns every shake off, from the player's CameraShake setting
+CameraShake.Enabled = true
+
 local DEFAULT_INTENSITY = 0.35
 local DEFAULT_DURATION = 0.2
 
@@ -17,6 +20,9 @@ RunService:BindToRenderStep("CameraShakeApply", Enum.RenderPriority.Camera.Value
 end)
 
 function CameraShake:Shake(Intensity: number?, Duration: number?)
+	if not CameraShake.Enabled then
+		return
+	end
 	local EffectiveIntensity = math.max(0, Intensity or DEFAULT_INTENSITY)
 	local EffectiveDuration = math.max(0, Duration or DEFAULT_DURATION)
 	if EffectiveIntensity <= 0 or EffectiveDuration <= 0 then

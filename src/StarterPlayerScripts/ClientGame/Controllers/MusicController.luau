@@ -80,6 +80,10 @@ local function Track(Name: string): Sound?
 		if not BaseVolume[Sound] then
 			BaseVolume[Sound] = Sound.Volume
 		end
+		-- music goes through MusicGroup so the player's music volume reaches it
+		if not Sound.SoundGroup then
+			Sound.SoundGroup = SoundService:FindFirstChild("MusicGroup")
+		end
 		return Sound
 	end
 	return nil

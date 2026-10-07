@@ -17,14 +17,10 @@
 --[[
 	What connects to this
 
-	Started first by ClientGame.ClientMain, because remote events are only
-	queued for the first listener and the save is sent as soon as it
-	loads.
+	Started by ClientGame.ClientMain, after PlayerData.
 
-	Listens on:
-	  ReplicatedStorage.Remotes.Events.DataUpdated for "Keybinds", sent by
-	  Server.Modules.DataManager.
-	  ProximityPromptService.PromptShown.
+	Reads Keybinds from ClientGame.Controllers.PlayerData.
+	Listens on ProximityPromptService.PromptShown.
 ]]
 
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -33,7 +29,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keybinds = require(ReplicatedStorage.Modules.Shared.Keybinds)
 local MovementSettings = require(ReplicatedStorage.Modules.Shared.MovementSettings)
 
-local Events = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Events")
+local PlayerData = require(script.Parent.PlayerData)
 
 local KeybindController = {}
 
@@ -67,14 +63,9 @@ local function SetPromptKey(Prompt: ProximityPrompt)
 end
 
 function KeybindController.Init()
-	Events:WaitForChild("DataUpdated").OnClientEvent:Connect(function(Name, Value)
-		if Name == "Keybinds" then
-			Keybinds.Load(Value)
-		end
-	end)
-
 	Keybinds.Changed.Event:Connect(ApplyMovement)
 	ApplyMovement()
+	PlayerData.Watch("Keybinds", Keybinds.Load)
 
 	-- prompts can show before the keys arrive, and the key can change while one is up
 	ProximityPromptService.PromptShown:Connect(SetPromptKey)

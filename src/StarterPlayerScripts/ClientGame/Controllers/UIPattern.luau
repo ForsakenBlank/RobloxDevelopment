@@ -39,6 +39,9 @@ UIPattern.Settings = {
 -- Row -> true, for rows in this player's gui.
 local Rows: { [GuiObject]: boolean } = {}
 
+-- false stops the squares sliding, from the player's MovingBackgrounds setting
+UIPattern.Moving = true
+
 function UIPattern.Init()
 	local PlayerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local Tag = UIPattern.Settings.Tag
@@ -60,6 +63,9 @@ function UIPattern.Init()
 	end)
 
 	RunService.RenderStepped:Connect(function()
+		if not UIPattern.Moving then
+			return
+		end
 		local Now = os.clock()
 		for Row in pairs(Rows) do
 			if not Row.Parent then

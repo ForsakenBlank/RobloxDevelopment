@@ -568,6 +568,10 @@ local function PlaySound(Name: string?, At: any, Volume: number?, Pitch: number?
 	local Spread = CombatFX.Settings.PitchSpread
 	Sound.PlaybackSpeed = Template.PlaybackSpeed * (Pitch or 1) * (1 + (math.random() * 2 - 1) * Spread)
 	Sound.Volume = Template.Volume * (Volume or 1)
+	-- effects go through SFXGroup so the player's effects volume reaches them
+	if not Sound.SoundGroup then
+		Sound.SoundGroup = game:GetService("SoundService"):FindFirstChild("SFXGroup")
+	end
 
 	local Holder: Instance? = nil
 	if typeof(At) == "Instance" and (At:IsA("BasePart") or At:IsA("Attachment")) then

@@ -66,8 +66,11 @@ local Player = Players.LocalPlayer
 -- planning stub with no Init is skipped with a note rather than
 -- erroring. Uncomment each as it gets written.
 local ControllerList = {
-	-- first, so it is listening when the save's keys arrive
+	-- first, it is the one listener for the save's values
+	{ Name = "PlayerData", Module = Controllers.PlayerData },
 	{ Name = "KeybindController", Module = Controllers.KeybindController },
+	-- volumes, camera shake and moving backgrounds from the lobby's Settings
+	{ Name = "SettingsController", Module = Controllers.SettingsController },
 	{ Name = "HUDController", Module = Controllers.HUDController },
 	{ Name = "FXController", Module = Controllers.FXController },
 	-- The Roblox Backpack as the item inventory.
