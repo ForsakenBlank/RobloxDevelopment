@@ -76,6 +76,8 @@ function Bomber:Attack(AttackName: string, Target)
 
 	self.BaseWalkSpeed = self.Data.WalkSpeed * Bomber.Settings.FuseSpeedMultiplier
 	self.Humanoid.WalkSpeed = self.BaseWalkSpeed
+	-- it runs at the player, so it faces where it runs
+	EnemyAI.FreeTurn(self)
 
 	task.spawn(function()
 		local Ends = os.clock() + Fuse

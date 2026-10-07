@@ -60,7 +60,10 @@ local EnemyData = {}
 -- Rules that apply to every enemy unless its own entry overrides.
 EnemyData.Shared = {
 	-- How often the AI picks a target and decides what to do.
-	ThinkRate = 0.15,
+	ThinkRate = 0.1,
+	-- a hit for at least this fraction of max health makes a non boss enemy flinch (stop moving) for FlinchTime seconds
+	FlinchFraction = 0.08,
+	FlinchTime = 0.15,
 	-- An enemy with no player in DetectRange does this: "Idle" stands
 	-- still, "Wander" walks to random nearby points, "Hunt" heads for
 	-- the nearest player anyway.

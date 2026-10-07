@@ -304,9 +304,14 @@ function EnemyBase:TakeDamage(Amount: number, Attacker: any, Info: any?): (numbe
 	self.Humanoid.Health = self.Health
 	self:_UpdateHealthBar()
 
-	if self.Data.AggroOnHit ~= false and EnemyData.Shared.AggroOnHit and Attacker then
+	if self.Data.AggroOnHit ~= false and EnemyData.Shared.AggroOnHit and typeof(Attacker) == "Instance" and Attacker:IsA("Player") then
 		self.Target = Attacker
 		self.AggroUntil = os.clock() + EnemyData.Shared.AggroDuration
+	end
+
+	-- a heavy hit staggers it for a moment (EnemyAI stops it moving), never a boss
+	if not self.Data.IsBoss and Dealt >= self.MaxHealth * (EnemyData.Shared.FlinchFraction or 1) then
+		self.FlinchUntil = os.clock() + (EnemyData.Shared.FlinchTime or 0)
 	end
 
 	if type(self.OnDamaged) == "function" then

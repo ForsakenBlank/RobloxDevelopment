@@ -93,6 +93,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EnemyData = require(ReplicatedStorage.Modules.Game.Data.EnemyData)
 local CombatFX = require(ReplicatedStorage.Modules.Game.Shared.CombatFX)
+local RunConfig = require(ReplicatedStorage.Modules.Game.Shared.RunConfig)
 local EnemyBase = require(script.Parent.EnemyBase)
 local PlayerStats = require(script.Parent.Parent.Core.PlayerStats)
 
@@ -156,19 +157,56 @@ EnemyAI.Settings = {
 	ChargeStep = 1 / 30,
 	-- The pathfinding agent. Scaled by the model's height against a
 	-- normal 5 stud R6.
+	-- A little wider than the body so paths keep off walls and edges
+	-- instead of hugging them.
 	Agent = {
-		AgentRadius = 2,
+		AgentRadius = 2.6,
 		AgentHeight = 5,
 		AgentCanJump = true,
 		AgentCanClimb = false,
-		WaypointSpacing = 6,
+		WaypointSpacing = 4,
 	},
+
+	-- how fast an enemy turns to face a player while planted or strafing (AlignOrientation responsiveness)
+	TurnResponsiveness = 22,
+	-- radius of the thick line check for walking straight at something, times the model's scale
+	LineRadius = 1.4,
+	-- straight walks check for floor every this many studs (at most FloorCheckMax times), and a drop deeper than MaxDrop counts as a ledge
+	FloorCheckSpacing = 7,
+	FloorCheckMax = 6,
+	MaxDrop = 10,
+	-- waypoints ahead a path follower looks for one it can walk straight to
+	LookAhead = 4,
+	-- the goal has to move this many studs before a new path is worked out
+	RepathMoveThreshold = 6,
+
+	-- enemies push apart within this many studs (times scale), by up to SeparationWeight studs, so a crowd never becomes one blob
+	SeparationRadius = 5,
+	SeparationWeight = 7,
+	-- far away, each enemy heads for a point off to its own side of the target (up to FlankMaxAngle radians, out to FlankRadius studs),
+	-- easing to straight on by FlankFullDistance, so a room comes at you from several sides instead of in single file
+	FlankMaxAngle = 0.9,
+	FlankRadius = 16,
+	FlankFullDistance = 35,
+	-- how many enemies can be swinging at one player at once (a difficulty can set MeleeAttackers instead).
+	-- the rest circle just outside reach, WaitRingExtra studs past their melee range, and take turns
+	MaxMeleeAttackers = 2,
+	WaitRingExtra = 5,
+	-- during a melee wind up the enemy keeps stepping in at this fraction of its speed, instead of stopping dead
+	WindUpStepSpeed = 0.4,
+	-- after a melee swing the enemy steps back and to the side for this long (an entry's BackOffTime overrides, 0 turns it off)
+	BackOffTime = 0.45,
 }
 
 local Running = false
 -- How many enemies are going for each player, rebuilt every tick, for
 -- spreading a crowd over the team.
 local TargetCounts: { [Player]: number } = {}
+-- how many enemies are mid swing at each player right now, for taking turns
+local SwingCounts: { [Player]: number } = {}
+
+-- attacks that need the enemy right next to the player, which take turns
+local CloseKinds = { Melee = true, Charge = true, Slam = true }
 
 ----------------------------------------------------------------------
 -- TARGETS
@@ -293,20 +331,106 @@ local function Stop(Enemy)
 end
 EnemyAI.Stop = Stop
 
--- Turns the enemy to face a point without tilting it.
-function EnemyAI.Face(Enemy, Position: Vector3)
+-- The physics turn used while an enemy is planted or strafing, so it
+-- turns smoothly to face a player instead of snapping round. Made the
+-- first time it is needed.
+local function Facer(Enemy): AlignOrientation?
 	local Root = Enemy.Root
-	local Flat = Vector3.new(Position.X, Root.Position.Y, Position.Z)
-	if (Flat - Root.Position).Magnitude > 0.1 then
-		Root.CFrame = CFrame.lookAt(Root.Position, Flat)
+	if not Root or not Root.Parent then
+		return nil
 	end
+	local Existing = Root:FindFirstChild("AIFacing")
+	if Existing and Existing:IsA("AlignOrientation") then
+		return Existing
+	end
+	local Attachment = Instance.new("Attachment")
+	Attachment.Name = "AIFacingAttachment"
+	Attachment.Parent = Root
+	local Align = Instance.new("AlignOrientation")
+	Align.Name = "AIFacing"
+	Align.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	Align.Attachment0 = Attachment
+	Align.RigidityEnabled = false
+	Align.MaxTorque = math.huge
+	Align.Responsiveness = EnemyAI.Settings.TurnResponsiveness
+	Align.Enabled = false
+	Align.Parent = Root
+	return Align
 end
 
-local function HasClearLine(Enemy, To: Vector3): boolean
+-- Turns the enemy to face a point without tilting it. The turn is
+-- smooth, and the humanoid stops turning itself to its walk direction
+-- until FreeTurn, so it can strafe while facing the player.
+function EnemyAI.Face(Enemy, Position: Vector3)
+	local Root = Enemy.Root
+	local Flat = (Position - Root.Position) * Vector3.new(1, 0, 1)
+	if Flat.Magnitude < 0.1 then
+		return
+	end
+	local Align = Facer(Enemy)
+	if not Align then
+		return
+	end
+	Enemy.Humanoid.AutoRotate = false
+	Align.CFrame = CFrame.lookAt(Vector3.zero, Flat.Unit)
+	Align.Enabled = true
+end
+
+-- Hands turning back to the humanoid, which faces where it walks.
+local function FreeTurn(Enemy)
+	local Align = Enemy.Root:FindFirstChild("AIFacing")
+	if Align and Align.Enabled then
+		Align.Enabled = false
+	end
+	if not Enemy.Humanoid.AutoRotate then
+		Enemy.Humanoid.AutoRotate = true
+	end
+end
+EnemyAI.FreeTurn = FreeTurn
+
+local function MapParams(Enemy): RaycastParams
 	local HitDetection = require(script.Parent.Parent.Combat.HitDetection)
+	return HitDetection.MapRaycastParams({ Enemy.Model })
+end
+
+-- Whether the enemy's body fits along a straight line to To. A thick
+-- check, so it does not catch a corner the thin line would have missed.
+local function HasClearLine(Enemy, To: Vector3, Params: RaycastParams?): boolean
 	local From = Enemy.Root.Position
-	local Result = workspace:Raycast(From, To - From, HitDetection.MapRaycastParams({ Enemy.Model }))
+	local Offset = To - From
+	if Offset.Magnitude < 0.5 then
+		return true
+	end
+	Params = Params or MapParams(Enemy)
+	local Radius = EnemyAI.Settings.LineRadius * (Enemy.AI and Enemy.AI.Scale or 1)
+	local Ok, Result = pcall(workspace.Spherecast, workspace, From, Radius, Offset, Params)
+	if not Ok then
+		Result = workspace:Raycast(From, Offset, Params)
+	end
 	return Result == nil
+end
+
+-- Whether there is floor under the whole of a straight walk to To, so
+-- an enemy never runs off a ledge or the edge of the map chasing
+-- someone on the far side of a gap.
+local function HasFloorAlong(Enemy, To: Vector3, Params: RaycastParams?): boolean
+	local Settings = EnemyAI.Settings
+	local From = Enemy.Root.Position
+	local Offset = (To - From) * Vector3.new(1, 0, 1)
+	local Length = Offset.Magnitude
+	if Length < 4 then
+		return true
+	end
+	Params = Params or MapParams(Enemy)
+	local Steps = math.clamp(math.floor(Length / Settings.FloorCheckSpacing), 1, Settings.FloorCheckMax)
+	local Down = Vector3.new(0, -(Settings.MaxDrop + 4), 0)
+	for Step = 1, Steps do
+		local Point = From + Offset * (Step / (Steps + 1))
+		if not workspace:Raycast(Point + Vector3.new(0, 2, 0), Down, Params) then
+			return false
+		end
+	end
+	return true
 end
 
 -- Size of this model relative to a normal 5 stud R6, for the agent
@@ -363,14 +487,74 @@ local function ComputePath(Enemy, Goal: Vector3)
 			return
 		end
 		if Ok and Path.Status == Enum.PathStatus.Success then
-			AI.Path = Path:GetWaypoints()
-			AI.WaypointIndex = 2
+			local Waypoints = Path:GetWaypoints()
+			-- Start from the waypoint just past the nearest one, so a
+			-- fresh path never sends the enemy back the way it came.
+			local Start, Nearest = 2, math.huge
+			local Position = Enemy.Root.Position
+			for Index = 1, math.min(#Waypoints, 6) do
+				local Flat = ((Waypoints[Index].Position - Position) * Vector3.new(1, 0, 1)).Magnitude
+				if Flat < Nearest then
+					Start, Nearest = Index, Flat
+				end
+			end
+			AI.Path = Waypoints
+			AI.WaypointIndex = math.min(Start + 1, #Waypoints)
+			AI.PathGoal = Goal
 			AI.PathFails = 0
 		else
 			AI.Path = nil
+			AI.PathGoal = nil
 			AI.PathFails = (AI.PathFails or 0) + 1
 		end
 	end)
+end
+
+-- Follows the current path. Instead of walking to each waypoint in
+-- turn (which hugs every corner and zig zags), it heads for the
+-- furthest waypoint a few ahead that it can walk to in a straight line.
+local function FollowPath(Enemy, Params: RaycastParams): boolean
+	local Settings = EnemyAI.Settings
+	local AI = Enemy.AI
+	local Path = AI.Path
+	if not Path or AI.WaypointIndex > #Path then
+		return false
+	end
+	local Root = Enemy.Root
+	local Humanoid = Enemy.Humanoid
+	local Waypoint = Path[AI.WaypointIndex]
+	local Flat = (Waypoint.Position - Root.Position) * Vector3.new(1, 0, 1)
+	if Flat.Magnitude < Settings.WaypointReachedDistance then
+		AI.WaypointIndex += 1
+		Waypoint = Path[AI.WaypointIndex]
+		if not Waypoint then
+			return false
+		end
+	end
+	if Waypoint.Action == Enum.PathWaypointAction.Jump then
+		Humanoid.Jump = true
+		Humanoid:MoveTo(Waypoint.Position)
+		return true
+	end
+
+	local Lift = Vector3.new(0, Root.Position.Y - (Path[math.max(1, AI.WaypointIndex - 1)].Position.Y), 0)
+	local Best = AI.WaypointIndex
+	for Look = AI.WaypointIndex + 1, math.min(#Path, AI.WaypointIndex + Settings.LookAhead) do
+		local Ahead = Path[Look]
+		if Ahead.Action == Enum.PathWaypointAction.Jump or Path[Look - 1].Action == Enum.PathWaypointAction.Jump then
+			break
+		end
+		if math.abs(Ahead.Position.Y - Waypoint.Position.Y) > Settings.DirectChaseMaxHeight then
+			break
+		end
+		if not HasClearLine(Enemy, Ahead.Position + Lift, Params) then
+			break
+		end
+		Best = Look
+	end
+	AI.WaypointIndex = Best
+	Humanoid:MoveTo(Path[Best].Position)
+	return true
 end
 
 -- Walks toward Goal, straight if it can, along a path if not.
@@ -382,40 +566,37 @@ local function MoveTowards(Enemy, Goal: Vector3, Target: Player?)
 	local Now = os.clock()
 	AI.Moving = true
 
+	local Params = MapParams(Enemy)
 	local Offset = Goal - Root.Position
 	local Direct = Offset.Magnitude <= Settings.DirectChaseDistance
 		and math.abs(Offset.Y) <= Settings.DirectChaseMaxHeight
-		and HasClearLine(Enemy, Goal)
+		and HasClearLine(Enemy, Goal, Params)
+		and HasFloorAlong(Enemy, Goal, Params)
 
 	if Direct or Enemy.Data.DirectChaseOnly or not EnemyData.Shared.UsePathfinding then
 		AI.Path = nil
 		Humanoid:MoveTo(Goal)
 	else
-		if Now >= (AI.NextRepathAt or 0) then
-			AI.NextRepathAt = Now + EnemyData.Shared.RepathRate
+		-- A new path only when the goal has really moved, so the route
+		-- does not flicker every half second.
+		local Stale = not AI.Path or not AI.PathGoal or (Goal - AI.PathGoal).Magnitude > Settings.RepathMoveThreshold
+			or AI.WaypointIndex > #AI.Path
+		if Now >= (AI.NextRepathAt or 0) and Stale then
+			AI.NextRepathAt = Now + EnemyData.Shared.RepathRate * (0.8 + math.random() * 0.4)
 			ComputePath(Enemy, Goal)
 		end
-		local Path = AI.Path
-		if Path and AI.WaypointIndex <= #Path then
-			local Waypoint = Path[AI.WaypointIndex]
-			local Flat = (Waypoint.Position - Root.Position) * Vector3.new(1, 0, 1)
-			if Flat.Magnitude < Settings.WaypointReachedDistance then
-				AI.WaypointIndex += 1
-				Waypoint = Path[AI.WaypointIndex]
+		if not FollowPath(Enemy, Params) then
+			if (AI.PathFails or 0) >= 2 and Target then
+				-- No path at all: the target is somewhere feet cannot go.
+				AI.Unreachable[Target] = Now + Settings.UnreachableTime
+				AI.PathFails = 0
 			end
-			if Waypoint then
-				if Waypoint.Action == Enum.PathWaypointAction.Jump then
-					Humanoid.Jump = true
-				end
-				Humanoid:MoveTo(Waypoint.Position)
+			-- Never walk blind off a ledge while waiting for a path.
+			if HasFloorAlong(Enemy, Goal, Params) then
+				Humanoid:MoveTo(Goal)
+			else
+				Humanoid:Move(Vector3.zero)
 			end
-		elseif (AI.PathFails or 0) >= 2 and Target then
-			-- No path at all: the target is somewhere feet cannot go.
-			AI.Unreachable[Target] = Now + Settings.UnreachableTime
-			AI.PathFails = 0
-			Humanoid:MoveTo(Goal)
-		else
-			Humanoid:MoveTo(Goal)
 		end
 	end
 
@@ -429,6 +610,7 @@ local function MoveTowards(Enemy, Goal: Vector3, Target: Player?)
 		AI.StuckSince = Now
 		AI.StuckStrikes += 1
 		AI.NextRepathAt = 0
+		AI.PathGoal = nil
 		if AI.StuckStrikes >= Settings.StuckStrikes and Target then
 			AI.Unreachable[Target] = Now + Settings.UnreachableTime
 			AI.StuckStrikes = 0
@@ -461,10 +643,28 @@ local function KindOf(Attack): string
 end
 EnemyAI.KindOf = KindOf
 
+-- How many enemies may swing at one player at once.
+local function MaxSwingers(): number
+	local Run = RunConfig.IsSet() and RunConfig.Get() or nil
+	local FromDifficulty = Run and Run.Difficulty and Run.Difficulty.MeleeAttackers
+	return FromDifficulty or EnemyAI.Settings.MaxMeleeAttackers
+end
+
+-- Whether this enemy has to wait its turn before a close attack on
+-- Target. Bosses never wait.
+function EnemyAI.MustWaitTurn(Enemy, Target: Player?): boolean
+	if not Target or Enemy.Data.IsBoss then
+		return false
+	end
+	return (SwingCounts[Target] or 0) >= MaxSwingers()
+end
+
 -- The highest priority attack the target is in range of that is off
--- cooldown. Unreachable limits it to attacks that do not need feet.
-function EnemyAI.ChooseAttack(Enemy, Distance: number, Unreachable: boolean): string?
+-- cooldown. Unreachable limits it to attacks that do not need feet,
+-- and a close attack waits while enough others are already swinging.
+function EnemyAI.ChooseAttack(Enemy, Distance: number, Unreachable: boolean, Target: Player?): string?
 	local BestName, BestPriority = nil, -math.huge
+	local Waiting = EnemyAI.MustWaitTurn(Enemy, Target)
 	for Name, Attack in pairs(Enemy.Attacks) do
 		local Kind = KindOf(Attack)
 		local Usable = Distance <= Attack.Range and Distance >= (Attack.MinRange or 0) and Enemy:CanUseAttack(Name)
@@ -476,6 +676,9 @@ function EnemyAI.ChooseAttack(Enemy, Distance: number, Unreachable: boolean): st
 		end
 		-- A charge at someone up a wall would just run into it.
 		if Unreachable and Kind == "Charge" then
+			Usable = false
+		end
+		if Waiting and CloseKinds[Kind] then
 			Usable = false
 		end
 		if Usable and type(Enemy.CanUseAttackNow) == "function" then
@@ -767,9 +970,26 @@ function EnemyAI.PerformAttack(Enemy, AttackName: string, Target: Player?)
 	local Settings = EnemyAI.Settings
 	local Kind = KindOf(Attack)
 	local WindUp = (Attack.WindUp or 0) * (Enemy.WindUpMultiplier or 1)
+	local AI = Enemy.AI or {}
+	local Humanoid = Enemy.Humanoid
+	local BaseSpeed = Enemy.BaseWalkSpeed or Enemy.Data.WalkSpeed
 
 	Enemy.Busy = true
-	Stop(Enemy)
+	-- counted by the think loop so enemies take turns swinging at one player
+	AI.AttackKind = Kind
+	AI.AttackTarget = Target
+	local function Done()
+		AI.AttackKind = nil
+		AI.AttackTarget = nil
+		Enemy.Busy = false
+	end
+
+	-- a melee swing keeps stepping in (see below), everything else plants
+	if Kind == "Melee" then
+		Humanoid.WalkSpeed = BaseSpeed * Settings.WindUpStepSpeed
+	else
+		Stop(Enemy)
+	end
 	local TargetRoot = Target and EnemyAI.GetPlayerRoot(Target)
 	if TargetRoot then
 		EnemyAI.Face(Enemy, TargetRoot.Position)
@@ -803,7 +1023,7 @@ function EnemyAI.PerformAttack(Enemy, AttackName: string, Target: Player?)
 			while os.clock() < Ends do
 				if Enemy.IsDead or Enemy.IsStunned then
 					CombatFX.Broadcast("Telegraph_Line", nil, { Id = LineId, Remove = true })
-					Enemy.Busy = false
+					Done()
 					return
 				end
 				local Root = Target and EnemyAI.GetPlayerRoot(Target)
@@ -831,46 +1051,61 @@ function EnemyAI.PerformAttack(Enemy, AttackName: string, Target: Player?)
 				warn("[EnemyAI] " .. Enemy.TypeName .. " charge failed: " .. tostring(Error))
 			end
 			task.wait(Enemy.AttackRecovery or Enemy.Data.AttackRecovery or Settings.AttackRecovery)
-			Enemy.Busy = false
+			Done()
 			return
 		end
 
 		-- Melee keeps turning to follow a target that moves during the
-		-- wind up, so a swing is only dodged by getting out of reach.
+		-- wind up, so a swing is only dodged by getting out of reach,
+		-- and keeps closing in slowly so it never stops dead mid chase.
 		local Ends = os.clock() + WindUp
 		while os.clock() < Ends do
 			if Enemy.IsDead or Enemy.IsStunned then
-				Enemy.Busy = false
+				Humanoid.WalkSpeed = BaseSpeed
+				Done()
 				return
 			end
 			local Root = Target and EnemyAI.GetPlayerRoot(Target)
 			if Root and (Kind == "Melee" or Kind == "Ranged") then
 				EnemyAI.Face(Enemy, Root.Position)
 			end
+			if Root and Kind == "Melee" then
+				local Flat = (Root.Position - Enemy.Root.Position) * Vector3.new(1, 0, 1)
+				if Flat.Magnitude > Attack.Range * 0.55 then
+					Humanoid:MoveTo(Root.Position - Flat.Unit * Attack.Range * 0.45)
+				else
+					Humanoid:Move(Vector3.zero)
+					Humanoid:MoveTo(Enemy.Root.Position)
+				end
+			end
 			task.wait(0.05)
 		end
+		if Kind == "Melee" then
+			Humanoid.WalkSpeed = BaseSpeed
+		end
 		if Enemy.IsDead or Enemy.IsStunned then
-			Enemy.Busy = false
+			Done()
 			return
 		end
 
 		-- The lunge: a jump forward as the swing comes out, if the
-		-- target has got a little out of reach.
+		-- target has got most of the way out of reach.
 		local Root = Target and EnemyAI.GetPlayerRoot(Target)
 		if Kind == "Melee" and Attack.Lunge and Root then
 			local Flat = (Root.Position - Enemy.Root.Position) * Vector3.new(1, 0, 1)
-			if Flat.Magnitude > 2.5 then
+			if Flat.Magnitude > Attack.Range * 0.75 then
 				-- A burst of speed straight at the target for a moment.
 				local Lunge = Attack.Lunge
-				local Humanoid = Enemy.Humanoid
 				Humanoid.WalkSpeed = Lunge.Speed
 				Humanoid:MoveTo(Enemy.Root.Position + Flat.Unit * math.min(Flat.Magnitude, Lunge.Speed * (Lunge.Time or 0.12) + 2))
 				task.wait(Lunge.Time or 0.12)
 				if not Enemy.IsDead and not Enemy.IsStunned then
-					Humanoid.WalkSpeed = Enemy.BaseWalkSpeed or Enemy.Data.WalkSpeed
-					Stop(Enemy)
+					Humanoid.WalkSpeed = BaseSpeed
 				end
 			end
+		end
+		if Kind == "Melee" then
+			Stop(Enemy)
 		end
 
 		local Handler = (Kind == "Rain" and EnemyAI.RunRain) or (Kind == "Shockwave" and EnemyAI.RunShockwave) or nil
@@ -885,7 +1120,14 @@ function EnemyAI.PerformAttack(Enemy, AttackName: string, Target: Player?)
 			warn("[EnemyAI] " .. Enemy.TypeName .. " " .. AttackName .. " failed: " .. tostring(Error))
 		end
 		task.wait(Enemy.AttackRecovery or Enemy.Data.AttackRecovery or Settings.AttackRecovery)
-		Enemy.Busy = false
+		-- after a swing, step back and to one side so the next enemy in
+		-- line gets its turn and this one is not a statue to hit
+		local BackOff = Enemy.Data.BackOffTime or Settings.BackOffTime
+		if Kind == "Melee" and BackOff > 0 and not Enemy.Data.IsBoss then
+			AI.BackOffUntil = os.clock() + BackOff
+			AI.BackOffSide = math.random() < 0.5 and -1 or 1
+		end
+		Done()
 	end)
 end
 
@@ -901,9 +1143,57 @@ local function EnsureState(Enemy)
 			StuckStrikes = 0,
 			StrafeSign = math.random() < 0.5 and -1 or 1,
 			NextStrafeFlip = os.clock() + 1 + math.random() * 2,
+			-- which side of the target this enemy comes in from, -1 to 1 of FlankMaxAngle
+			Flank = math.random() * 2 - 1,
+			Separation = Vector3.zero,
 		}
 	end
 	return Enemy.AI
+end
+
+-- Turns a flat direction round the vertical by Angle radians.
+local function Turn(Direction: Vector3, Angle: number): Vector3
+	local C, S = math.cos(Angle), math.sin(Angle)
+	return Vector3.new(Direction.X * C - Direction.Z * S, 0, Direction.X * S + Direction.Z * C)
+end
+
+-- Every enemy's push away from the others near it, worked out once a
+-- tick for all of them. Enemies do not collide with each other, so
+-- without this a crowd walks into one spot.
+local function UpdateSeparation(Alive: { any })
+	local Settings = EnemyAI.Settings
+	local Positions = {}
+	local Radii = {}
+	for Index, Enemy in ipairs(Alive) do
+		if Enemy.Root.Parent and not Enemy.IsDead then
+			Positions[Index] = Enemy.Root.Position
+			Radii[Index] = Settings.SeparationRadius * ScaleOf(Enemy)
+		end
+	end
+	for Index, Enemy in ipairs(Alive) do
+		local Mine = Positions[Index]
+		if Mine and Enemy.AI then
+			local Push = Vector3.zero
+			for Other, Theirs in pairs(Positions) do
+				if Other ~= Index then
+					local Offset = (Mine - Theirs) * Vector3.new(1, 0, 1)
+					local Distance = Offset.Magnitude
+					local Radius = math.max(Radii[Index], Radii[Other])
+					if Distance < Radius then
+						if Distance < 0.05 then
+							Offset = Vector3.new(math.random() - 0.5, 0, math.random() - 0.5)
+							Distance = math.max(Offset.Magnitude, 0.01)
+						end
+						Push += (Offset / Distance) * (1 - Distance / Radius)
+					end
+				end
+			end
+			if Push.Magnitude > 1 then
+				Push = Push.Unit
+			end
+			Enemy.AI.Separation = Push
+		end
+	end
 end
 
 -- One decision for one enemy.
@@ -911,7 +1201,9 @@ function EnemyAI.Think(Enemy)
 	if Enemy.IsDead or Enemy.Stationary or not Enemy.Root.Parent then
 		return
 	end
+	local Settings = EnemyAI.Settings
 	local AI = EnsureState(Enemy)
+	local Now = os.clock()
 
 	if Enemy.IsStunned then
 		if AI.Moving then
@@ -927,6 +1219,7 @@ function EnemyAI.Think(Enemy)
 	if Target ~= Enemy.Target then
 		Enemy.Target = Target
 		AI.Path = nil
+		AI.PathGoal = nil
 		AI.NextRepathAt = 0
 	end
 	local TargetRoot = Target and EnemyAI.GetPlayerRoot(Target)
@@ -934,6 +1227,15 @@ function EnemyAI.Think(Enemy)
 		if AI.Moving then
 			Stop(Enemy)
 		end
+		FreeTurn(Enemy)
+		return
+	end
+
+	-- a heavy hit makes it stagger for a moment
+	if Now < (Enemy.FlinchUntil or 0) then
+		Enemy.Humanoid:Move(Vector3.zero)
+		Enemy.Humanoid:MoveTo(Enemy.Root.Position)
+		AI.Moving = false
 		return
 	end
 
@@ -946,8 +1248,20 @@ function EnemyAI.Think(Enemy)
 		end
 	end
 
+	local Away = Enemy.Root.Position - TargetRoot.Position
+	Away = Vector3.new(Away.X, 0, Away.Z)
+	local Separation = AI.Separation * Settings.SeparationWeight
+
+	-- straight after a swing: step back and to the side, still facing
+	if Now < (AI.BackOffUntil or 0) and Away.Magnitude > 0.1 then
+		local Side = Vector3.new(-Away.Z, 0, Away.X).Unit * (AI.BackOffSide or 1)
+		MoveTowards(Enemy, Enemy.Root.Position + Away.Unit * 5 + Side * 5 + Separation, nil)
+		EnemyAI.Face(Enemy, TargetRoot.Position)
+		return
+	end
+
 	local Unreachable = IsUnreachable(Enemy, Target)
-	local AttackName = EnemyAI.ChooseAttack(Enemy, Distance, Unreachable)
+	local AttackName = EnemyAI.ChooseAttack(Enemy, Distance, Unreachable, Target)
 	if AttackName then
 		if type(Enemy.Attack) == "function" then
 			Enemy:Attack(AttackName, Target)
@@ -961,7 +1275,7 @@ function EnemyAI.Think(Enemy)
 	-- target so a crowd does not stack on one point.
 	local Melee = Enemy.Attacks.Melee or Enemy.Attacks.Close
 	local MeleeRange = Melee and Melee.Range or 5
-	local Desired = MeleeRange * EnemyAI.Settings.SurroundFraction
+	local Desired = MeleeRange * Settings.SurroundFraction
 	local Preferred = Enemy.Data.PreferredDistance
 	if Preferred and Preferred > 0 then
 		Desired = Preferred
@@ -969,33 +1283,47 @@ function EnemyAI.Think(Enemy)
 	if type(Enemy.DesiredRange) == "function" then
 		Desired = Enemy:DesiredRange(Target, Distance) or Desired
 	end
+	-- enough others are already swinging at this player: hold just out
+	-- of reach and circle, ready to step in when one backs off
+	local Waiting = Melee ~= nil and EnemyAI.MustWaitTurn(Enemy, Target) and Desired < MeleeRange
+	if Waiting then
+		Desired = MeleeRange + Settings.WaitRingExtra
+	end
 
-	local Away = Enemy.Root.Position - TargetRoot.Position
-	Away = Vector3.new(Away.X, 0, Away.Z)
 	if Distance > Desired + 1.5 then
-		local Spread = Vector3.new(math.cos(AI.Angle), 0, math.sin(AI.Angle)) * math.min(Desired, 6)
+		-- Come in from this enemy's own side: aim at a point off to the
+		-- side of the target while far away, easing to straight on as
+		-- it gets close, so a room closes in from several directions.
+		local Bearing = Away.Magnitude > 0.1 and Away.Unit or Vector3.new(math.cos(AI.Angle), 0, math.sin(AI.Angle))
+		local Far = math.clamp((Distance - Desired) / Settings.FlankFullDistance, 0, 1)
+		local Slot = Turn(Bearing, AI.Flank * Settings.FlankMaxAngle * Far)
+		local SlotRadius = Desired + math.min((Distance - Desired) * 0.5, Settings.FlankRadius * Far)
 		-- Aim a little ahead of a moving target, so running in a
 		-- straight line does not leave the enemy behind.
 		local Lead = TargetRoot.AssemblyLinearVelocity * Vector3.new(1, 0, 1) * math.clamp(Distance / 60, 0, 0.5)
-		local Goal = TargetRoot.Position + Spread + Lead
+		local Goal = TargetRoot.Position + Slot * SlotRadius + Lead + Separation
 		if Unreachable then
 			-- Stand under them and wait.
-			Goal = Vector3.new(TargetRoot.Position.X, Enemy.Root.Position.Y, TargetRoot.Position.Z) + Spread
+			Goal = Vector3.new(TargetRoot.Position.X, Enemy.Root.Position.Y, TargetRoot.Position.Z) + Slot * math.min(Desired, 6) + Separation
 		end
+		FreeTurn(Enemy)
 		MoveTowards(Enemy, Goal, Target)
 	elseif Distance < Desired - 3 and Away.Magnitude > 0.1 then
 		-- Too close for comfort, back off, circling as it goes.
 		local Side = Vector3.new(-Away.Z, 0, Away.X).Unit * AI.StrafeSign
-		MoveTowards(Enemy, Enemy.Root.Position + Away.Unit * 8 + Side * 4, nil)
-	elseif (Enemy.Data.StrafeSpeed or 0) > 0 and Away.Magnitude > 0.1 then
+		MoveTowards(Enemy, Enemy.Root.Position + Away.Unit * 8 + Side * 4 + Separation, nil)
+		EnemyAI.Face(Enemy, TargetRoot.Position)
+	elseif ((Enemy.Data.StrafeSpeed or 0) > 0 or Waiting or Separation.Magnitude > 2) and Away.Magnitude > 0.1 then
 		-- Circle the target at the range it likes, changing direction
-		-- now and then, so it is never a still target.
-		if os.clock() >= AI.NextStrafeFlip then
+		-- now and then, so it is never a still target. Waiting enemies
+		-- and ones pressed by the crowd drift round too.
+		if Now >= AI.NextStrafeFlip then
 			AI.StrafeSign = -AI.StrafeSign
-			AI.NextStrafeFlip = os.clock() + 1.2 + math.random() * 2
+			AI.NextStrafeFlip = Now + 1.2 + math.random() * 2
 		end
+		local Speed = (Enemy.Data.StrafeSpeed or 0) > 0 and Enemy.Data.StrafeSpeed or 0.5
 		local Side = Vector3.new(-Away.Z, 0, Away.X).Unit * AI.StrafeSign
-		MoveTowards(Enemy, Enemy.Root.Position + Side * 10 * Enemy.Data.StrafeSpeed, nil)
+		MoveTowards(Enemy, Enemy.Root.Position + Side * 10 * Speed + Separation, nil)
 		EnemyAI.Face(Enemy, TargetRoot.Position)
 	else
 		if AI.Moving then
@@ -1010,21 +1338,41 @@ function EnemyAI.Init()
 		return
 	end
 	Running = true
+
+	EnemyBase.Died:Connect(function(Enemy)
+		local Align = Enemy.Root and Enemy.Root:FindFirstChild("AIFacing")
+		if Align then
+			Align.Enabled = false
+		end
+	end)
+
 	task.spawn(function()
 		while Running do
 			local Alive = EnemyBase.GetAlive()
-			-- Who is going for whom, for the crowd penalty.
+			-- Who is going for whom, for the crowd penalty, and who is
+			-- mid swing at whom, for taking turns.
 			local Counts = {}
+			local Swings = {}
 			for _, Enemy in ipairs(Alive) do
+				EnsureState(Enemy)
 				if Enemy.Target then
 					Counts[Enemy.Target] = (Counts[Enemy.Target] or 0) + 1
 				end
+				local AI = Enemy.AI
+				if Enemy.Busy and AI.AttackTarget and AI.AttackKind and CloseKinds[AI.AttackKind] then
+					Swings[AI.AttackTarget] = (Swings[AI.AttackTarget] or 0) + 1
+				end
 			end
 			TargetCounts = Counts
+			SwingCounts = Swings
+			local Ok, Error = pcall(UpdateSeparation, Alive)
+			if not Ok then
+				warn("[EnemyAI] separation failed: " .. tostring(Error))
+			end
 			for _, Enemy in ipairs(Alive) do
-				local Ok, Error = pcall(EnemyAI.Think, Enemy)
-				if not Ok then
-					warn("[EnemyAI] " .. tostring(Enemy.TypeName) .. " think failed: " .. tostring(Error))
+				local ThinkOk, ThinkError = pcall(EnemyAI.Think, Enemy)
+				if not ThinkOk then
+					warn("[EnemyAI] " .. tostring(Enemy.TypeName) .. " think failed: " .. tostring(ThinkError))
 				end
 			end
 			task.wait(EnemyData.Shared.ThinkRate)
