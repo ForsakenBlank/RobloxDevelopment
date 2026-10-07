@@ -206,7 +206,7 @@ local TargetCounts: { [Player]: number } = {}
 local SwingCounts: { [Player]: number } = {}
 
 -- attacks that need the enemy right next to the player, which take turns
-local CloseKinds = { Melee = true, Charge = true, Slam = true }
+local CloseKinds = { Melee = true, Slam = true }
 
 ----------------------------------------------------------------------
 -- TARGETS
@@ -1061,7 +1061,8 @@ function EnemyAI.PerformAttack(Enemy, AttackName: string, Target: Player?)
 		local Ends = os.clock() + WindUp
 		while os.clock() < Ends do
 			if Enemy.IsDead or Enemy.IsStunned then
-				Humanoid.WalkSpeed = BaseSpeed
+				-- the stun owns the walk speed now and puts it back itself
+				Stop(Enemy)
 				Done()
 				return
 			end
@@ -1080,12 +1081,13 @@ function EnemyAI.PerformAttack(Enemy, AttackName: string, Target: Player?)
 			end
 			task.wait(0.05)
 		end
-		if Kind == "Melee" then
-			Humanoid.WalkSpeed = BaseSpeed
-		end
 		if Enemy.IsDead or Enemy.IsStunned then
+			Stop(Enemy)
 			Done()
 			return
+		end
+		if Kind == "Melee" then
+			Humanoid.WalkSpeed = BaseSpeed
 		end
 
 		-- The lunge: a jump forward as the swing comes out, if the
