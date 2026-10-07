@@ -210,6 +210,7 @@ function ProjectileService.Explode(Spec, Position: Vector3, OwnerModelOverride: 
 		local Damage = StatFormulas.FalloffDamage(Spec.Damage, Hit.Distance, Explosion.Radius, Explosion.Falloff)
 		local _, Killed = DamageService.ApplyDamage(Hit.Model, Damage, Spec.Owner, {
 			Source = Spec.Source,
+			DamageType = Spec.DamageType,
 			Knockback = Spec.Knockback,
 			From = Position,
 			StatusEffect = Spec.StatusEffect,
@@ -259,6 +260,7 @@ local function Impact(Projectile, Position: Vector3, HitModel: Model?, HitPart: 
 		local Damage, Crit = DirectDamage(Spec, HitPart)
 		DamageService.ApplyDamage(HitModel, Damage, Spec.Owner, {
 			Source = Spec.Source,
+			DamageType = Spec.DamageType,
 			Knockback = Spec.Knockback,
 			From = Projectile.Position,
 			StatusEffect = Spec.StatusEffect,
@@ -650,6 +652,7 @@ function ProjectileService.Step(DeltaTime: number)
 				local Damage, Crit = DirectDamage(Spec, Result.Instance)
 				DamageService.ApplyDamage(HitModel, Damage, Spec.Owner, {
 					Source = Spec.Source,
+					DamageType = Spec.DamageType,
 					Knockback = Spec.Knockback,
 					From = Projectile.Position,
 					StatusEffect = Spec.StatusEffect,

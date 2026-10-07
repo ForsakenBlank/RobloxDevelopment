@@ -80,6 +80,9 @@ local Signal = require(ReplicatedStorage.Modules.Game.Shared.Signal)
 local AntiCheat = require(ServerScriptService.Server.Modules.AntiCheat)
 local PlayerStats = require(script.Parent.Parent.Core.PlayerStats)
 local EnemyBase = require(script.Parent.Parent.Enemies.EnemyBase)
+local RunStats = require(script.Parent.Parent.Core.RunStats)
+local WeaponData = require(ReplicatedStorage.Modules.Game.Data.WeaponData)
+local AbilityData = require(ReplicatedStorage.Modules.Game.Data.AbilityData)
 
 local DamageService = {}
 
@@ -171,6 +174,40 @@ local function IncomingMultiplier(Target: any): number
 	return 1
 end
 
+-- "Weapon" or "Ability" from a hit's Source label ("Sword MB1", "StunSlam", "Parry"), nil for anything else
+local function HitKind(Source: any): string?
+	if type(Source) ~= "string" then
+		return nil
+	end
+	local First = string.match(Source, "^(%S+)")
+	if First == "Parry" or (First and WeaponData.Weapons[First]) then
+		return "Weapon"
+	end
+	if First and AbilityData.Abilities[First] then
+		return "Ability"
+	end
+	return nil
+end
+
+-- the attacker's gear multiplier for this kind of hit
+local function GearOutgoing(Player: Player, Kind: string?): number
+	if Kind == "Weapon" then
+		return RunStats.Value(Player, "WeaponDamageMultiplier") or 1
+	elseif Kind == "Ability" then
+		return RunStats.Value(Player, "AbilityDamageMultiplier") or 1
+	end
+	return 1
+end
+
+-- the target's gear multiplier on damage taken, overall and by type (Melee, Fire, Magic)
+local function GearIncoming(Player: Player, DamageType: string?): number
+	local Multiplier = RunStats.Value(Player, "DamageTakenMultiplier") or 1
+	if type(DamageType) == "string" then
+		Multiplier *= RunStats.Value(Player, DamageType .. "DamageTakenMultiplier") or 1
+	end
+	return Multiplier
+end
+
 ----------------------------------------------------------------------
 -- INTERNAL
 ----------------------------------------------------------------------
@@ -229,6 +266,11 @@ local function ApplyKnockback(Target: Model, Amount: number, From: Vector3?, IsP
 		-- shove instead, and the anti cheat is told to expect it.
 		local Player = Players:GetPlayerFromCharacter(Target)
 		if Player then
+			-- gear can shrink the shove or ignore it outright
+			if math.random() < (RunStats.Value(Player, "IgnoreKnockbackChance") or 0) then
+				return
+			end
+			Amount *= RunStats.Value(Player, "KnockbackMultiplier") or 1
 			AntiCheat.GrantException(Player, DamageService.Settings.PlayerKnockbackGrace)
 			CombatFX.SendTo(Player, "Knockback", nil, { Velocity = Direction * Amount })
 		end
@@ -249,7 +291,9 @@ local function PayReward(Enemy, Killer: Player?)
 	if not Run then
 		return 0
 	end
-	local Reward = StatFormulas.MoneyReward(Enemy.Data.MoneyReward, Run, Enemy.RewardMultiplier)
+	-- the killer's gear can raise what the kill pays
+	local Coins = Killer and (RunStats.Value(Killer, "CoinMultiplier") or 1) or 1
+	local Reward = StatFormulas.MoneyReward(Enemy.Data.MoneyReward, Run, (Enemy.RewardMultiplier or 1) * Coins)
 	if Reward <= 0 then
 		return 0
 	end
@@ -292,6 +336,8 @@ end
 --                  attacker's position
 --     IgnoreMultipliers  true skips the effect multipliers, for
 --                  damage over time that was already calculated
+--     DamageType   optional "Melee", "Fire" or "Magic", for the
+--                  player's gear damage taken multipliers
 function DamageService.ApplyDamage(Target: Model, BaseDamage: number, Attacker: any, Info: { [string]: any }?): (number, boolean)
 	Info = Info or {}
 	if BaseDamage <= 0 or not Target then
@@ -328,8 +374,23 @@ function DamageService.ApplyDamage(Target: Model, BaseDamage: number, Attacker: 
 				Outgoing *= QuickSwap.DamageMultiplier or 1
 				Info.QuickSwap = true
 			end
+
+			-- gear: weapon or ability damage, then a crit roll
+			local Kind = HitKind(Info.Source)
+			Outgoing *= GearOutgoing(Attacker, Kind)
+			if Kind and not Info.Crit and RunStats.Value(Attacker, "CritsEnabled") then
+				if math.random() < (RunStats.Value(Attacker, "CritChance") or 0) then
+					Outgoing *= RunStats.Value(Attacker, "CritDamageMultiplier") or 1
+					Info.Crit = true
+				end
+			end
 		end
 		Amount = StatFormulas.FinalDamage(BaseDamage, Outgoing, IncomingMultiplier(TargetKey))
+	end
+
+	-- gear on the player being hit, damage over time included
+	if TargetPlayer then
+		Amount *= GearIncoming(TargetPlayer, Info.DamageType)
 	end
 
 	local Dealt, Killed
@@ -341,6 +402,17 @@ function DamageService.ApplyDamage(Target: Model, BaseDamage: number, Attacker: 
 
 	if Dealt <= 0 then
 		return 0, false
+	end
+
+	-- when each player last hit or was hit, for gear that stops health regen in combat
+	if TargetStats then
+		TargetStats.LastCombatAt = os.clock()
+	end
+	if typeof(Attacker) == "Instance" and Attacker:IsA("Player") then
+		local AttackerStats = PlayerStats.Get(Attacker)
+		if AttackerStats then
+			AttackerStats.LastCombatAt = os.clock()
+		end
 	end
 
 	-- Where the shove comes from: the attacker's root if it has one.

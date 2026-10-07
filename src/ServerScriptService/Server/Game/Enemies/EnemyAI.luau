@@ -499,6 +499,8 @@ local function HitPlayer(Enemy, AttackName: string, Attack, Character: Model, Fr
 	local DamageService = require(script.Parent.Parent.Combat.DamageService)
 	DamageService.ApplyDamage(Character, DamageOf(Enemy, Attack), Enemy, {
 		Source = Enemy.TypeName .. " " .. AttackName,
+		-- a hit in reach counts as melee unless the attack says otherwise
+		DamageType = Attack.DamageType or "Melee",
 		Knockback = Attack.Knockback,
 		From = From,
 		StatusEffect = Attack.StatusEffect,
@@ -552,6 +554,7 @@ function EnemyAI.FireAt(Enemy, AttackName: string, Attack, Target: Player)
 			Pierce = 0,
 			Knockback = Attack.Knockback,
 			Source = Enemy.TypeName .. " " .. AttackName,
+			DamageType = Attack.DamageType,
 			StatusEffect = Attack.StatusEffect,
 			Explosion = P.Explosion,
 			Radius = P.Radius,

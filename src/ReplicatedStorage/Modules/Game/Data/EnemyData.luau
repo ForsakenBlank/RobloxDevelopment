@@ -274,6 +274,8 @@ EnemyData.Enemies = {
 				Sound = "MagicBolt",
 				StatusEffect = nil,
 				Knockback = 8,
+				-- for the Magic damage taken multiplier from gear
+				DamageType = "Magic",
 				Projectile = { Speed = 115, ModelName = "NecroBolt", Gravity = 0, Radius = 1.8, Count = 3, Spread = 14 },
 			},
 			Summon = {

@@ -56,6 +56,7 @@ local CombatFX = require(ReplicatedStorage.Modules.Game.Shared.CombatFX)
 local AbilityBase = require(script.Parent.AbilityBase)
 local PlayerStats = require(script.Parent.Parent.Parent.Core.PlayerStats)
 local StatusEffectService = require(script.Parent.Parent.Parent.Effects.StatusEffectService)
+local RunStats = require(script.Parent.Parent.Parent.Core.RunStats)
 
 local HealBurst = setmetatable({}, { __index = AbilityBase })
 HealBurst.__index = HealBurst
@@ -111,11 +112,13 @@ function HealBurst:OnUse(Context)
 	local Data = self.Data
 	local DamageService = require(script.Parent.Parent.DamageService)
 	local Healed = 0
+	-- the healer's gear makes every heal bigger
+	local Boost = RunStats.Value(Context.Player, "HealingMultiplier") or 1
 	for _, Player in ipairs(self:GetTargets(Context.Character)) do
 		if Player.Character then
-			DamageService.ApplyHeal(Player.Character, Data.HealAmount)
+			DamageService.ApplyHeal(Player.Character, Data.HealAmount * Boost)
 			if Data.Regen and Data.Regen.Enabled then
-				StatusEffectService.Apply(Player, "Regeneration", Data.Regen.Duration, Data.Regen.AmountPerTick, Context.Player)
+				StatusEffectService.Apply(Player, "Regeneration", Data.Regen.Duration, Data.Regen.AmountPerTick * Boost, Context.Player)
 			end
 			Healed += 1
 		end

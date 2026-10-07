@@ -58,12 +58,18 @@ local AbilityData = require(ReplicatedStorage.Modules.Game.Data.AbilityData)
 local RunConfig = require(ReplicatedStorage.Modules.Game.Shared.RunConfig)
 local StatFormulas = require(ReplicatedStorage.Modules.Game.Shared.StatFormulas)
 local PlayerStats = require(script.Parent.Parent.Core.PlayerStats)
+local RunStats = require(script.Parent.Parent.Core.RunStats)
 
 local EnergyService = {}
 
 -- Set false to freeze regen for everyone, for example during the
 -- results screen. Read live.
 EnergyService.RegenEnabled = true
+
+EnergyService.Settings = {
+	-- seconds after hitting or being hit that gear with NoHealthRegenInCombat stops health regen
+	CombatRegenLock = 15,
+}
 
 local Accumulator = 0
 local Connection: RBXScriptConnection? = nil
@@ -81,12 +87,21 @@ local function Tick(TickLength: number)
 	end
 	local Run = RunConfig.Get()
 
-	local Amount = StatFormulas.EnergyRegenPerSecond(Run) * TickLength
-	local HealthAmount = StatFormulas.HealthRegenPerSecond(Run) * TickLength
+	local BaseAmount = StatFormulas.EnergyRegenPerSecond(Run) * TickLength
+	local BaseHealthAmount = StatFormulas.HealthRegenPerSecond(Run) * TickLength
+	local PlayerRegen = Run.Difficulty.PlayerRegen or 1
 	local Delay = GameConfig.Player.EnergyRegenDelayAfterUse
 
-	for _, Stats in pairs(PlayerStats.GetAll()) do
+	for Player, Stats in pairs(PlayerStats.GetAll()) do
 		if Stats:IsAlive() then
+			-- the player's own rates from gear, still scaled by the difficulty
+			local EnergyRate = RunStats.Value(Player, "EnergyRegenPerSecond")
+			local HealthRate = RunStats.Value(Player, "HealthRegenPerSecond")
+			local Amount = EnergyRate and EnergyRate * PlayerRegen * TickLength or BaseAmount
+			local HealthAmount = HealthRate and HealthRate * PlayerRegen * TickLength or BaseHealthAmount
+			if RunStats.Value(Player, "NoHealthRegenInCombat") and os.clock() - (Stats.LastCombatAt or 0) < EnergyService.Settings.CombatRegenLock then
+				HealthAmount = 0
+			end
 			if Amount > 0 and Stats:GetEnergy() < Stats:GetMaxEnergy() then
 				if Delay <= 0 or Stats:TimeSinceEnergyUse() >= Delay then
 					Stats:AddEnergy(Amount)

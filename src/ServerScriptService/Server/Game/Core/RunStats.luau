@@ -53,6 +53,7 @@ RunStats.Defaults = {
 	MeleeDamageTakenMultiplier = 1,
 	FireDamageTakenMultiplier = 1,
 	MagicDamageTakenMultiplier = 1,
+	NoHealthRegenInCombat = false,
 	KnockbackMultiplier = 1,
 	IgnoreKnockbackChance = 0,
 	WeaponCooldownMultiplier = 1,

@@ -27,16 +27,16 @@ Steps marked **(needs lobby files)** copy code from the lobby place, which is no
 ## 4. Gear and core stats in a run
 - [x] 4.1 `Server.Game.Core.RunStats` uses `CharacterStats.Compute` and `ForRun`, and gives neutral numbers until CharacterStats is copied in. Passes are always empty for now
 - [x] 4.2 `MaxHealth`, `MaxEnergy` into `PlayerStats.new` overrides in `RunSetup`
-- [ ] 4.3 Health and energy regen per player in `EnergyService` (plus Ruby's no regen in combat)
-- [ ] 4.4 Weapon and ability damage multipliers in `DamageService`
-- [ ] 4.5 Crits in `DamageService`
-- [ ] 4.6 Damage taken multipliers (overall and melee, fire, magic)
-- [ ] 4.7 Knockback multiplier and ignore knockback chance
+- [x] 4.3 Health and energy regen per player in `EnergyService` (plus Ruby's no regen in combat)
+- [x] 4.4 Weapon and ability damage multipliers in `DamageService`
+- [x] 4.5 Crits in `DamageService`
+- [x] 4.6 Damage taken multipliers (overall and melee, fire, magic). Hits now carry `DamageType`: enemy melee is Melee, Burning is Fire, the Necromancer's bolts are Magic. Tag other attacks in EnemyData with `DamageType`
+- [x] 4.7 Knockback multiplier and ignore knockback chance
 - [x] 4.8 Split cooldown multiplier into weapon and ability
 - [x] 4.9 `SpeedMultiplier` through `SetSpeedMultiplier("Gear", ...)`
 - [x] 4.10 `Lifesteal` through `SetLifesteal("Gear", ...)`
-- [ ] 4.11 `HealingMultiplier` on Heal Burst
-- [ ] 4.12 `CoinMultiplier` on kill money
+- [x] 4.11 `HealingMultiplier` on Heal Burst
+- [x] 4.12 `CoinMultiplier` on kill money
 - [x] 4.13 `ExpMultiplier`, `CashMultiplier` at the end of a run
 
 ## 5. Keys in the game

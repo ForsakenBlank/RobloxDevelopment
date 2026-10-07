@@ -239,6 +239,7 @@ local function Tick(Key: any, Entry)
 	if Entry.Data.Kind == "Damage" then
 		DamageService.ApplyDamage(Model, Entry.Amount, Entry.Source, {
 			Source = Entry.Name,
+			DamageType = Entry.Data.DamageType,
 			IgnoreMultipliers = true,
 		})
 	elseif Entry.Data.Kind == "Heal" then

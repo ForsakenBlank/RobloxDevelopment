@@ -122,6 +122,8 @@ StatusEffectData.Effects = {
 		Enabled = true,
 		DisplayName = "Burning",
 		Kind = "Damage",
+		-- for the Fire damage taken multiplier from gear
+		DamageType = "Fire",
 		TickRate = 1,
 		DefaultDuration = 4,
 		AmountPerTick = 8,
