@@ -80,6 +80,8 @@ AbilityBase.__index = AbilityBase
 
 AbilityBase.Settings = {
 	MinCooldown = 0.1,
+	-- seconds early a use is still accepted, see WeaponBase.Settings.CooldownTolerance
+	CooldownTolerance = 0.1,
 	-- Attribute on the character that blocks abilities while set, the
 	-- one StatusEffectService sets for Stun.
 	StunnedAttribute = "Stunned",
@@ -156,7 +158,9 @@ function AbilityBase:CanUse(): (boolean, string?)
 	if self.Active then
 		return false, "already active"
 	end
-	if not GameConfig.Debug.FreeAbilities and self:GetCooldownRemaining() > 0 then
+	-- a little slack, since the server starts the cooldown a moment after the client
+	local Tolerance = math.min(AbilityBase.Settings.CooldownTolerance or 0, (self.Data.Cooldown or 0) * 0.25)
+	if not GameConfig.Debug.FreeAbilities and self:GetCooldownRemaining() > Tolerance then
 		return false, "on cooldown"
 	end
 

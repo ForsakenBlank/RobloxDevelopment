@@ -92,6 +92,9 @@ WeaponBase.Settings = {
 	-- A held button re-fires at the cooldown rate, this is the shortest
 	-- gap allowed between two attack requests even if the data says 0.
 	MinCooldown = 0.05,
+	-- seconds early a request is still accepted, since the server starts each cooldown a moment after the client does.
+	-- capped at a quarter of the attack's cooldown, so it can't be used to attack much faster
+	CooldownTolerance = 0.1,
 }
 
 ----------------------------------------------------------------------
@@ -302,8 +305,18 @@ function WeaponBase:CanAttack(Button: string): (boolean, string?)
 	if self.Destroyed then
 		return false, "destroyed"
 	end
-	if not GameConfig.Debug.FreeAbilities and self:GetCooldownRemaining(Button) > 0 then
+	-- the slack is a quarter of whichever wait is running: the gap between charges, or the recharge
+	local Recharging = self:GetChargesLeft(Button) <= 0
+	local Wait = Recharging and (Attack.Cooldown or 0) or (Attack.ChargeInterval or 0)
+	local Tolerance = math.min(WeaponBase.Settings.CooldownTolerance, Wait * 0.25)
+	local Remaining = self:GetCooldownRemaining(Button)
+	if not GameConfig.Debug.FreeAbilities and Remaining > Tolerance then
 		return false, "on cooldown"
+	end
+	-- let in a moment early at the end of a recharge: the charges come back now
+	if Recharging and Remaining > 0 then
+		self.ChargesLeft[Button] = Attack.Charges or 1
+		self.LastUseAt[Button] = 0
 	end
 	return true, nil
 end
