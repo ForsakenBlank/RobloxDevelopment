@@ -65,11 +65,22 @@ Taken from VelocityGameConnection.md. Section 1 protects player data, so it came
 - [ ] 8.6 `OwnedSkins.Noob` / `OwnedSkins.Guest` for beating the Guest in Retroscity (the map loader is ready, needs the RetroCity map in `workspace.Maps` and the Guest boss)
 
 ## 9. Testing the whole loop
-- [ ] 9.1 Fresh save: character screen, run, back to lobby, everything kept
-- [ ] 9.2 Max Health on the lobby Stats screen matches the HUD in a run
-- [ ] 9.3 Changed keys work in a run and show on the HUD
-- [ ] 9.4 Quit right after a run, rejoin the lobby, nothing missing
-- [ ] 9.5 Two player squad with different keys and gear
+
+Before testing: `rojo serve` this branch into the game place, and turn on Studio access to API services (Game Settings > Security) so Studio uses your real save. In `GameConfig.Debug` you can set `LogRunStats = true`, `StudioGearDropChance = 1` and `StudioMap = ""` for testing, then put them back.
+
+In Studio (game place, Play):
+- [ ] 9.1 Output has no red errors, and shows `[MapLoader] map: VeloCITY`, `[GameInit] game systems started` and one `[RunStats]` warning only if CharacterStats failed
+- [ ] 9.2 With `LogRunStats` on, the printed MaxHealth matches the lobby's Stats screen, and the HUD's max health matches too
+- [ ] 9.3 Keys you changed in the lobby (Use Ability, Swap, Attack, Interact) work, and the HUD and the "hold Z" banner show them
+- [ ] 9.4 Volume settings from the lobby apply, camera shake off stops shakes, your core tag is over your head
+- [ ] 9.5 With `StudioGearDropChance = 1`, kills drop gear with a toast, and the end screen lists it with your core's Enlightenment
+- [ ] 9.6 Banner and toasts sit a little lower than before
+
+Live (published, lobby to game and back):
+- [ ] 9.7 Fresh save: character screen, a run, back to the lobby. XP, Cash, Stats, gear and Enlightenment are all there
+- [ ] 9.8 Quit the game mid run, rejoin the lobby: that run's (loss) rewards are there
+- [ ] 9.9 Quit right after a run ends, rejoin the lobby: nothing missing
+- [ ] 9.10 Two player squad with different keys and gear: each gets their own
 
 ## Other
 - [x] One place for every map: `MapLoader` loads `workspace.Maps.<MapKey>` from the teleport data, `RoomData.MapAreas` and `WaveData.MapAreas` hold a map's own areas and waves

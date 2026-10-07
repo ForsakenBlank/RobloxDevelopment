@@ -399,6 +399,12 @@ GameConfig.Debug = {
 	TrainingDummies = 0,
 	-- Float a damage number over anything that gets hit.
 	ShowDamageNumbers = true,
+	-- print each player's numbers from their gear and core when a run starts (to compare with the lobby's Stats screen)
+	LogRunStats = false,
+	-- Studio only: the map key to load from workspace.Maps, "" uses the default (Studio has no teleport data)
+	StudioMap = "",
+	-- Studio only: the enemy gear drop chance instead of GameConfig.Gear.EnemyDropChance, nil leaves it alone (1 drops every kill)
+	StudioGearDropChance = nil,
 }
 
 ----------------------------------------------------------------------

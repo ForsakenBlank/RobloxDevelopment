@@ -32,6 +32,7 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local GameConfig = require(ReplicatedStorage.Modules.Game.Config.GameConfig)
@@ -130,6 +131,15 @@ local function PickFrom(Source: string): string?
 	return Pool[Rng:NextInteger(1, #Pool)]
 end
 
+-- the enemy drop chance, with the Studio test override
+local function DropChance(): number
+	local Override = GameConfig.Debug.StudioGearDropChance
+	if type(Override) == "number" and RunService:IsStudio() then
+		return Override
+	end
+	return GameConfig.Gear.EnemyDropChance or 0
+end
+
 function GearService.Init()
 	Players.PlayerRemoving:Connect(function(Player)
 		Found[Player] = nil
@@ -150,7 +160,7 @@ function GearService.Init()
 					GearService.Grant(Player, ItemId, "Boss")
 				end
 			end
-		elseif Killer and Rng:NextNumber() < (Config.EnemyDropChance or 0) * (Enemy.RewardMultiplier or 1) then
+		elseif Killer and Rng:NextNumber() < DropChance() * (Enemy.RewardMultiplier or 1) then
 			local ItemId = PickFrom("Enemy")
 			if ItemId then
 				GearService.Grant(Killer, ItemId, "Enemy")

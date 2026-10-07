@@ -39,6 +39,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
+local GameConfig = require(ReplicatedStorage.Modules.Game.Config.GameConfig)
 local MapData = require(ReplicatedStorage.Modules.Game.Data.MapData)
 local RoomData = require(ReplicatedStorage.Modules.Game.Data.RoomData)
 local WaveData = require(ReplicatedStorage.Modules.Game.Data.WaveData)
@@ -70,7 +71,14 @@ local function WantedMap(): string
 		task.wait(0.1)
 	end
 	local Data = TeleportDataReader.GetRunData()
-	return Data and Data.Map or MapData.Default
+	if Data and Data.Map then
+		return Data.Map
+	end
+	local StudioMap = GameConfig.Debug.StudioMap
+	if RunService:IsStudio() and type(StudioMap) == "string" and StudioMap ~= "" then
+		return StudioMap
+	end
+	return MapData.Default
 end
 
 -- The map this server is running, once Init has finished.

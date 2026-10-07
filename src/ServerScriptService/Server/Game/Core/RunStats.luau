@@ -34,6 +34,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
+local GameConfig = require(ReplicatedStorage.Modules.Game.Config.GameConfig)
 local DataManager = require(ServerScriptService.Server.Modules.DataManager)
 local PassService = require(script.Parent.PassService)
 
@@ -117,6 +118,18 @@ function RunStats.Compute(Player: Player): { [string]: any }
 		end
 	end
 	ByPlayer[Player] = Numbers
+	if GameConfig.Debug.LogRunStats then
+		local Keys = {}
+		for Key in pairs(Numbers) do
+			table.insert(Keys, Key)
+		end
+		table.sort(Keys)
+		local Parts = {}
+		for _, Key in ipairs(Keys) do
+			table.insert(Parts, Key .. "=" .. tostring(Numbers[Key]))
+		end
+		print("[RunStats] " .. Player.Name .. ": " .. table.concat(Parts, ", "))
+	end
 	return Numbers
 end
 

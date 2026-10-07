@@ -9,7 +9,9 @@
 	Remote events are only queued for the first listener, so this is the
 	one listener for DataUpdated: ClientMain starts it before anything
 	else, and other controllers read Get and Changed instead of the
-	remote.
+	remote. In case some other script heard those first messages anyway,
+	it also asks the server for the whole save once
+	(Server.Game.Core.PlayerDataSync).
 ]]
 
 --[[
@@ -22,7 +24,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Events = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Events")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local Events = Remotes:WaitForChild("Events")
 
 local PlayerData = {}
 
@@ -55,6 +58,24 @@ function PlayerData.Init()
 		end
 		Values[Name] = Value
 		PlayerData.Changed:Fire(Name, Value)
+	end)
+
+	-- fills in anything the remote did not bring, without going back over newer values
+	task.spawn(function()
+		local GetPlayerData = Remotes:WaitForChild("Functions"):WaitForChild("GetPlayerData", 10)
+		if not GetPlayerData then
+			return
+		end
+		local Ok, Save = pcall(GetPlayerData.InvokeServer, GetPlayerData)
+		if not Ok or type(Save) ~= "table" then
+			return
+		end
+		for Name, Value in pairs(Save) do
+			if Values[Name] == nil then
+				Values[Name] = Value
+				PlayerData.Changed:Fire(Name, Value)
+			end
+		end
 	end)
 end
 
