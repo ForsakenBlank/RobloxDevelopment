@@ -86,6 +86,34 @@ local Hud = nil
 local LastSnapshot = nil
 -- the last loadout shown, so the key labels can be redrawn when the keys change
 local LastLoadout = nil
+-- where the run is, for the line at the top when no wave is running
+local Area = { Name = nil, Kind = nil, Phase = nil, WaveActive = false, WavesSeen = false }
+
+-- The top line outside a wave: what to do next, or 0 left once a room is cleared.
+local function RefreshStatus()
+	if not Hud or Area.WaveActive then
+		return
+	end
+	local Lines = HUDConfig.Wave.Status
+	local Pick = nil
+	if Area.Phase == "Countdown" then
+		Pick = Lines.Countdown
+	elseif Area.Kind == "Shop" then
+		Pick = Lines.Shop
+	elseif Area.Kind == "Spawn" then
+		Pick = Lines.Spawn
+	elseif (Area.Kind == "Combat" or Area.Kind == "Boss") and (Area.WavesSeen or Area.Phase == "Cleared") then
+		Pick = Area.Kind == "Boss" and Lines.BossCleared or Lines.Cleared
+	end
+	if not Pick then
+		Hud:SetWave(nil)
+		return
+	end
+	local Key = Keybinds.Label("Interact")
+	local Title = string.gsub(Pick[1], "{Interact}", Key)
+	local Sub = string.gsub(Pick[2] or "", "{Interact}", Key)
+	Hud:SetStatus(Title, Sub)
+end
 local SlotAbilities: { [string]: string? } = {}
 
 ----------------------------------------------------------------------
@@ -284,18 +312,31 @@ function HUDController.Init()
 		end
 	end)
 
-	-- The room name at the top of the HUD follows the room banner.
+	-- The room name at the top of the HUD follows the room banner, and
+	-- outside a wave the top says what to do next.
 	Events:WaitForChild("RoomEntered").OnClientEvent:Connect(function(Info)
 		if Hud and type(Info) == "table" then
 			Hud:SetRoom(Info.Banner or Info.Area)
+			if Info.Area ~= Area.Name then
+				Area.WavesSeen = false
+			end
+			Area.Name, Area.Kind, Area.Phase = Info.Area, Info.Kind, Info.Phase
+			RefreshStatus()
 		end
 	end)
 
 	Events:WaitForChild("WaveStateChanged").OnClientEvent:Connect(function(WaveNumber: number?, WaveTotal: number?, EnemiesLeft: number?)
 		if Hud then
-			Hud:SetWave(WaveNumber, WaveTotal, EnemiesLeft)
+			Area.WaveActive = WaveNumber ~= nil
+			if WaveNumber then
+				Area.WavesSeen = true
+				Hud:SetWave(WaveNumber, WaveTotal, EnemiesLeft)
+			else
+				RefreshStatus()
+			end
 		end
 	end)
+	Keybinds.Changed.Event:Connect(RefreshStatus)
 
 	-- Ask for the current values in case the first sends went out
 	-- before this script was listening.

@@ -226,6 +226,16 @@ HUDConfig.Wave = {
 	IdleText = "",
 	-- Hide the label entirely when there is no wave running.
 	HideWhenIdle = true,
+	-- the line under the wave count while the next wave is on its way
+	BetweenText = "NEXT WAVE INCOMING",
+	-- what the top shows outside a fight, as { title, line under it }. {Interact} is the player's interact key
+	Status = {
+		Spawn = { "GET READY", "HOLD {Interact} AT THE YELLOW GATE" },
+		Countdown = { "GET READY", "THE FIGHT IS ABOUT TO START" },
+		Cleared = { "ALL DEFEATED", "0 LEFT - GO TO THE NEXT ROOM" },
+		BossCleared = { "BOSS DEFEATED", "0 LEFT" },
+		Shop = { "SHOP", "BUY, THEN HOLD {Interact} AT THE GATE" },
+	},
 }
 
 HUDConfig.Difficulty = {

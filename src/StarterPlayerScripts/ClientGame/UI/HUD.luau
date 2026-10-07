@@ -360,6 +360,13 @@ function HUD:SetWave(Current: number?, Total: number?, EnemiesLeft: number?)
 	end
 	self.WaveLabel.Visible = true
 	self.WaveLabel.Text = string.format(Config.Format, Current, Total or 0, EnemiesLeft or 0)
+	-- no count yet means the wave is still on its way
+	if EnemiesLeft == nil then
+		if self.LeftLabel then
+			self.LeftLabel.Text = Config.BetweenText or ""
+		end
+		return
+	end
 
 	-- The bar is enemies left over the most this wave has had.
 	local Left = EnemiesLeft or 0
@@ -374,6 +381,24 @@ function HUD:SetWave(Current: number?, Total: number?, EnemiesLeft: number?)
 	if self.WaveFill then
 		local Bars = HUDConfig.Bars
 		Tween(self.WaveFill, Bars.TweenTime, { Size = UDim2.new(Left / self.WaveSize, 0, 1, 0) }, Bars.EasingStyle, Bars.EasingDirection)
+	end
+end
+
+-- Shows a line of what is going on in place of the wave count, for
+-- the times there is no wave: the room cleared, a shop, spawn.
+function HUD:SetStatus(Title: string, Sub: string?)
+	if not self.WaveLabel then
+		return
+	end
+	self.WaveLabel.Visible = true
+	self.WaveLabel.Text = Title
+	self.WaveNumber = nil
+	if self.LeftLabel then
+		self.LeftLabel.Text = Sub or ""
+	end
+	if self.WaveFill then
+		local Bars = HUDConfig.Bars
+		Tween(self.WaveFill, Bars.TweenTime, { Size = UDim2.new(0, 0, 1, 0) }, Bars.EasingStyle, Bars.EasingDirection)
 	end
 end
 
