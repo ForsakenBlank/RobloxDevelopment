@@ -82,4 +82,7 @@ return {
 	-- Permanent upgrades bought in the lobby with Cash. Empty until the
 	-- lobby has a shop for them.
 	Upgrades = {},
+
+	-- goes up by 1 on every save, the lobby and this place use it to spot an old copy of the save
+	SaveVersion = 0,
 }

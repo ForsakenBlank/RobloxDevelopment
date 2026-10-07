@@ -97,7 +97,7 @@ RunSetup.Settings = {
 	StudioPartyWaitTimeout = 0.5,
 	-- Seconds to wait for a player's save to load before giving up
 	-- and building their stats from the defaults.
-	DataLoadTimeout = 10,
+	DataLoadTimeout = 20,
 }
 
 local Started = false

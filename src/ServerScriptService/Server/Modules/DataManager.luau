@@ -55,8 +55,16 @@ end
 local AUTOSAVE_INTERVAL = 120
 local MAX_ATTEMPTS = 3
 
+-- how long to keep re-reading a save that is older than the teleport data says it should be
+local VERSION_WAIT = 12
+local VERSION_RETRY = 1.5
+
 local sessionData = {}
 local dataLoaded = {}
+-- players whose load is running, so a second Load waits for the first instead of starting over
+local loading = {}
+-- players whose save could not be read, so the template never gets written over their real data
+local noSave = {}
 
 local function deepCopy(original)
 	local copy = {}
@@ -106,12 +114,45 @@ local function attempt(callback)
 	return false, nil
 end
 
+-- the SaveVersion the other place wrote right before teleporting this player here, or 0 if there was none
+local function expectedVersion(player)
+	local ok, joinData = pcall(function()
+		return player:GetJoinData()
+	end)
+	local teleportData = ok and type(joinData) == "table" and joinData.TeleportData
+	if type(teleportData) ~= "table" then
+		return 0
+	end
+
+	local version = teleportData.SaveVersion
+	if type(version) ~= "number" and type(teleportData.Loadouts) == "table" then
+		local mine = teleportData.Loadouts[tostring(player.UserId)] or teleportData.Loadouts[player.UserId]
+		version = type(mine) == "table" and mine.SaveVersion
+	end
+
+	return type(version) == "number" and version or 0
+end
+
 local function fireUpdate(player, variableName, value)
 	dataUpdatedRemote:FireClient(player, variableName, value)
 end
 
 function DataManager.Load(player)
-	local key = "Player_" .. player.UserId
+	local userId = player.UserId
+
+	-- only ever load a player once, a second call just waits for the first
+	if dataLoaded[userId] then
+		return sessionData[userId]
+	end
+	if loading[userId] then
+		while loading[userId] do
+			task.wait()
+		end
+		return sessionData[userId]
+	end
+	loading[userId] = true
+
+	local key = "Player_" .. userId
 
 	local live = store()
 
@@ -120,6 +161,25 @@ function DataManager.Load(player)
 		success, result = attempt(function()
 			return live:GetAsync(key)
 		end)
+
+		-- the save from the other place can still be on its way, so skip the cache and read again until it shows up
+		local wanted = expectedVersion(player)
+		local giveUpAt = os.clock() + VERSION_WAIT
+		while success and wanted > 0 and os.clock() < giveUpAt and player.Parent == Players do
+			local version = type(result) == "table" and result.SaveVersion or 0
+			if version >= wanted then
+				break
+			end
+			task.wait(VERSION_RETRY)
+			success, result = attempt(function()
+				local options = Instance.new("DataStoreGetOptions")
+				options.UseCache = false
+				return live:GetAsync(key, options)
+			end)
+		end
+		if success and wanted > 0 and (type(result) ~= "table" or (result.SaveVersion or 0) < wanted) then
+			warn("DataManager: " .. player.Name .. "'s save is older than expected (wanted version " .. wanted .. "), loading it anyway")
+		end
 	end
 
 	local data
@@ -127,13 +187,22 @@ function DataManager.Load(player)
 		data = fillMissing(result, PlayerDataTemplate)
 	else
 		if live and not success then
-			warn("DataManager: giving up loading data for " .. player.Name .. ", using template")
+			warn("DataManager: giving up loading data for " .. player.Name .. ", using template and not saving this session")
+			noSave[userId] = true
 		end
 		data = deepCopy(PlayerDataTemplate)
 	end
 
-	sessionData[player.UserId] = data
-	dataLoaded[player.UserId] = true
+	loading[userId] = nil
+
+	-- they left while we were loading, Release already ran so keep nothing
+	if player.Parent ~= Players then
+		noSave[userId] = nil
+		return data
+	end
+
+	sessionData[userId] = data
+	dataLoaded[userId] = true
 
 	return data
 end
@@ -144,12 +213,19 @@ function DataManager.Save(player)
 		return
 	end
 
+	if noSave[player.UserId] then
+		return
+	end
+
 	local key = "Player_" .. player.UserId
 
 	local live = store()
 	if not live then
 		return
 	end
+
+	-- every write gets a higher number, so the next place can tell if it read an old copy
+	data.SaveVersion = (data.SaveVersion or 0) + 1
 
 	local success = attempt(function()
 		live:SetAsync(key, data)
@@ -209,6 +285,7 @@ end
 function DataManager.Release(player)
 	sessionData[player.UserId] = nil
 	dataLoaded[player.UserId] = nil
+	noSave[player.UserId] = nil
 end
 
 function DataManager.Init()

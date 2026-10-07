@@ -24,6 +24,7 @@
 	        Kills = 42,             -- this player's kills in the run
 	        Money = 310,            -- money they ended the run with
 	        CashEarned = 77,        -- Cash already saved to their data
+	        SaveVersion = 12,       -- the save written just before the teleport
 	    }
 
 	Each player gets their own copy, so the lobby can show them their
@@ -133,6 +134,8 @@ function LobbyLink.SendToLobby(PlayerList: { Player }, PayloadFor: ((Player) -> 
 		-- See the note at the top.
 		if DataManager.IsLoaded(Player) then
 			DataManager.Save(Player)
+			-- the lobby waits for this save to show up before loading them
+			Payload.SaveVersion = DataManager.Get(Player, "SaveVersion")
 		end
 
 		local Sent = false

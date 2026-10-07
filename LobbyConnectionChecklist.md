@@ -5,9 +5,9 @@ Taken from VelocityGameConnection.md. We go through it one step at a time, top t
 Steps marked **(needs lobby files)** copy code from the lobby place, which is not in this repo yet. Bring those files in first (Save to File from the lobby, or paste them in).
 
 ## 1. Save safety
-- [ ] 1.1 Copy the lobby's `Server.Modules.DataManager` over the game's (adds `SaveVersion` and the double load guard) **(needs lobby files)**
-- [ ] 1.2 `LobbyLink.SendToLobby`: after `DataManager.Save(Player)`, set `Payload.SaveVersion = DataManager.Get(Player, "SaveVersion")`
-- [ ] 1.3 Check `PlayerManager.Init` can no longer load a player twice (comes with 1.1)
+- [x] 1.1 `SaveVersion` and the double load guard, written into the game's DataManager to match the doc. When the lobby's DataManager is in the repo, diff the two and make them identical **(needs lobby files for the final check)**
+- [x] 1.2 `LobbyLink.SendToLobby`: after `DataManager.Save(Player)`, set `Payload.SaveVersion = DataManager.Get(Player, "SaveVersion")`
+- [x] 1.3 Check `PlayerManager.Init` can no longer load a player twice (comes with 1.1)
 - [ ] 1.4 Later, in both places at once: session locked saves (ProfileStore or `UpdateAsync` with a lock)
 
 ## 2. One save template
@@ -56,7 +56,7 @@ Steps marked **(needs lobby files)** copy code from the lobby place, which is no
 
 ## 7. Teleport data
 - [ ] 7.1 Check `TeleportDataReader` against the lobby's payload (no `Armor` or `Accessories`, gear comes from the save)
-- [ ] 7.2 Game to lobby payload carries `SaveVersion` (same as 1.2)
+- [x] 7.2 Game to lobby payload carries `SaveVersion` (same as 1.2)
 
 ## 8. End of a run
 - [ ] 8.1 `Deaths`, `Parries`, `PerfectParries`
@@ -74,4 +74,6 @@ Steps marked **(needs lobby files)** copy code from the lobby place, which is no
 - [ ] 9.5 Two player squad with different keys and gear
 
 ## Other
+- [x] A save that fails to load is never written over (the template would have replaced the real save). The lobby should get this too
+- [x] `RunSetup.DataLoadTimeout` raised from 10 to 20 seconds so the version wait cannot run past it
 - [x] Move the area banner and toasts down a little (`RoomBannerController.Settings.PopupDrop`)
