@@ -35,6 +35,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local DataManager = require(ServerScriptService.Server.Modules.DataManager)
+local PassService = require(script.Parent.PassService)
 
 local RunStats = {}
 
@@ -101,10 +102,10 @@ function RunStats.Compute(Player: Player): { [string]: any }
 	local Module = GetCharacterStats()
 	local Save = DataManager.GetAll(Player)
 	if Module and Save then
-		-- passes (AccessorySlots, DoubleExp, VIP) are not checked in this place yet
-		local Passes = {}
+		-- passes (AccessorySlots, DoubleExp, VIP), asked for before the pcall since it can yield
+		local Context = { Passes = PassService.Owned(Player), DevAll = PassService.DevAll(Player) }
 		local Ok, Result = pcall(function()
-			local Sheet = Module.Compute(Save, { Passes = Passes })
+			local Sheet = Module.Compute(Save, Context)
 			return Module.ForRun(Sheet)
 		end)
 		if Ok and type(Result) == "table" then

@@ -81,6 +81,8 @@ local Services = {
 	{ Name = "GateController", Module = Game.Rooms.GateController },
 	{ Name = "KillPlanes", Module = Game.Rooms.KillPlanes },
 	{ Name = "RoomManager", Module = Game.Rooms.RoomManager },
+	-- the core tag over each player's head
+	{ Name = "CoreTagService", Module = Game.Core.CoreTagService },
 	-- gear drops from enemies and the boss
 	{ Name = "GearService", Module = Game.Core.GearService },
 	-- The way back to the lobby, before RunManager which uses it.
