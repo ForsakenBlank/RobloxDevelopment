@@ -83,6 +83,19 @@ return {
 	-- lobby has a shop for them.
 	Upgrades = {},
 
+	-- more lifetime stats, shared with the lobby's Stats screen
+	Deaths = 0,
+	Parries = 0,
+	PerfectParries = 0,
+	-- MapBest[Map][Difficulty] is the furthest area index reached
+	MapBest = {},
+	MapRuns = {},
+	-- seconds played and runs started with each core equipped
+	CoreTime = {},
+	CoreRuns = {},
+	WeaponKills = {},
+	AbilityUses = {},
+
 	-- goes up by 1 on every save, the lobby and this place use it to spot an old copy of the save
 	SaveVersion = 0,
 }

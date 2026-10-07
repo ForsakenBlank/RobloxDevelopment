@@ -69,6 +69,7 @@ local GameConfig = require(ReplicatedStorage.Modules.Game.Config.GameConfig)
 local AbilityData = require(ReplicatedStorage.Modules.Game.Data.AbilityData)
 local PlayerStats = require(script.Parent.Parent.Parent.Core.PlayerStats)
 local EnergyService = require(script.Parent.Parent.EnergyService)
+local Signal = require(ReplicatedStorage.Modules.Game.Shared.Signal)
 
 local AbilityBase = {}
 AbilityBase.__index = AbilityBase
@@ -103,6 +104,9 @@ end
 ----------------------------------------------------------------------
 -- CONSTRUCTION
 ----------------------------------------------------------------------
+
+-- fired with (Player, AbilityName) every time an ability goes off, RunManager counts these for AbilityUses
+AbilityBase.Used = Signal.new()
 
 function AbilityBase.new(Player: Player, AbilityName: string)
 	local Data = AbilityData.Get(AbilityName)
@@ -189,7 +193,7 @@ end
 function AbilityBase:StartCooldown(): number
 	-- Rage and anything else that speeds cooldowns up.
 	local Stats = PlayerStats.Get(self.Player)
-	local Multiplier = Stats and Stats:GetCooldownMultiplier() or 1
+	local Multiplier = Stats and Stats:GetCooldownMultiplier("Ability") or 1
 	local Length = math.max(self.Data.Cooldown * Multiplier, AbilityBase.Settings.MinCooldown)
 	if GameConfig.Debug.FreeAbilities then
 		Length = AbilityBase.Settings.MinCooldown
@@ -283,6 +287,8 @@ function AbilityBase:Use(AimPosition: Vector3?): (boolean, any, any)
 	if GameConfig.Debug.LogCombat then
 		print(string.format("[AbilityBase] %s used %s, cooldown %.1f", self.Player.Name, self.Name, Length))
 	end
+
+	AbilityBase.Used:Fire(self.Player, self.Name)
 
 	return true, Length, ClientData
 end

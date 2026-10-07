@@ -55,8 +55,9 @@
 	At the end of a run:
 	  Writes the lifetime stats back through
 	  ServerScriptService.Server.Modules.DataManager with Set and
-	  Increment, using TotalRuns, RunsWon, TotalKills, BestRoom and Cash
-	  from ReplicatedStorage.Modules.Shared.PlayerDataTemplate.
+	  Increment, using TotalRuns, RunsWon, TotalKills, BestRoom, Cash,
+	  XP, Deaths, MapBest, MapRuns, CoreTime, CoreRuns, WeaponKills and
+	  AbilityUses from ReplicatedStorage.Modules.Shared.PlayerDataTemplate.
 	  Clears every PlayerStats and Loadout object (by building fresh
 	  ones), every active effect in StatusEffectService, and everything
 	  still in workspace.Runtime.Enemies and workspace.Runtime.Projectiles.
@@ -85,11 +86,14 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local GameConfig = require(ReplicatedStorage.Modules.Game.Config.GameConfig)
 local RoomData = require(ReplicatedStorage.Modules.Game.Data.RoomData)
+local WeaponData = require(ReplicatedStorage.Modules.Game.Data.WeaponData)
 local RunConfig = require(ReplicatedStorage.Modules.Game.Shared.RunConfig)
 local DataManager = require(ServerScriptService.Server.Modules.DataManager)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Loadout = require(script.Parent.Loadout)
 local LobbyLink = require(script.Parent.LobbyLink)
+local TeleportDataReader = require(script.Parent.TeleportDataReader)
+local RunStats = require(script.Parent.RunStats)
 local RoomManager = require(script.Parent.Parent.Rooms.RoomManager)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -137,6 +141,28 @@ local Kills: { [Player]: number } = {}
 local BestIndex: { [Player]: number } = {}
 local Summary = nil
 local Generation = 0
+
+-- per run counts for the lifetime stats the lobby's Stats screen reads
+local Deaths: { [Player]: number } = {}
+local Parries: { [Player]: number } = {}
+local WeaponKills: { [Player]: { [string]: number } } = {}
+local AbilityUses: { [Player]: { [string]: number } } = {}
+local RunStartedAt = os.clock()
+local JoinedAt: { [Player]: number } = {}
+
+local function ClearRunCounts()
+	Deaths = {}
+	Parries = {}
+	WeaponKills = {}
+	AbilityUses = {}
+	RunStartedAt = os.clock()
+end
+
+local function CountUse(Into: { [Player]: { [string]: number } }, Player: Player, Name: string)
+	local Mine = Into[Player] or {}
+	Mine[Name] = (Mine[Name] or 0) + 1
+	Into[Player] = Mine
+end
 
 ----------------------------------------------------------------------
 -- STATE
@@ -219,6 +245,7 @@ local function OnCharacterAdded(Player: Player, Character: Model)
 end
 
 local function WatchPlayer(Player: Player)
+	JoinedAt[Player] = os.clock()
 	Player.CharacterAdded:Connect(function(Character)
 		OnCharacterAdded(Player, Character)
 	end)
@@ -240,6 +267,7 @@ local function OnPlayerDied(Player: Player, Source)
 	if State ~= "Playing" then
 		return
 	end
+	Deaths[Player] = (Deaths[Player] or 0) + 1
 	Notify:FireAllClients(Player.DisplayName .. " has fallen!")
 	if GameConfig.Multiplayer.RunEndsWhenAllDead then
 		CheckAllDead()
@@ -305,6 +333,7 @@ function RunManager.Start()
 	Summary = nil
 	Kills = {}
 	BestIndex = {}
+	ClearRunCounts()
 	RoomManager.Start()
 	SetState("Playing")
 end
@@ -316,6 +345,63 @@ local CashEarned: { [Player]: number } = {}
 local ExpEarned: { [Player]: number } = {}
 -- Players who have pressed Replay on the end screen.
 local Votes: { [Player]: boolean } = {}
+
+-- the map this run is filed under for MapBest and MapRuns
+local function CurrentMap(): string
+	local Data = TeleportDataReader.GetRunData()
+	return Data and Data.Map or GameConfig.Run.DefaultMap or "VeloCITY"
+end
+
+-- a fresh copy of a saved table, nested values have to be replaced (not edited) to reach the client
+local function SavedTable(Player: Player, Key: string)
+	local Value = DataManager.Get(Player, Key)
+	return type(Value) == "table" and table.clone(Value) or {}
+end
+
+-- adds each count in Counts to the saved table at Key
+local function AddCounts(Player: Player, Key: string, Counts: { [string]: number }?)
+	if not Counts or next(Counts) == nil then
+		return
+	end
+	local Saved = SavedTable(Player, Key)
+	for Name, Amount in pairs(Counts) do
+		Saved[Name] = (tonumber(Saved[Name]) or 0) + Amount
+	end
+	DataManager.Set(Player, Key, Saved)
+end
+
+-- deaths, map, core, weapon and ability stats for one player
+local function SaveRunDetails(Player: Player, Best: number)
+	if (Deaths[Player] or 0) > 0 then
+		DataManager.Increment(Player, "Deaths", Deaths[Player])
+	end
+	if (Parries[Player] or 0) > 0 then
+		DataManager.Increment(Player, "Parries", Parries[Player])
+	end
+
+	local Map = CurrentMap()
+	local Run = RunConfig.IsSet() and RunConfig.Get() or nil
+	local Difficulty = Run and Run.DifficultyName or GameConfig.Run.DefaultDifficulty
+	AddCounts(Player, "MapRuns", { [Map] = 1 })
+	local MapBest = SavedTable(Player, "MapBest")
+	local ForMap = type(MapBest[Map]) == "table" and table.clone(MapBest[Map]) or {}
+	if Best > (tonumber(ForMap[Difficulty]) or 0) then
+		ForMap[Difficulty] = Best
+		MapBest[Map] = ForMap
+		DataManager.Set(Player, "MapBest", MapBest)
+	end
+
+	-- the core is whatever the lobby saved as equipped, nothing is counted without one
+	local Core = DataManager.Get(Player, "Core")
+	if type(Core) == "string" and Core ~= "" and Core ~= "None" then
+		local Seconds = math.floor(os.clock() - math.max(RunStartedAt, JoinedAt[Player] or 0))
+		AddCounts(Player, "CoreTime", { [Core] = math.max(Seconds, 0) })
+		AddCounts(Player, "CoreRuns", { [Core] = 1 })
+	end
+
+	AddCounts(Player, "WeaponKills", WeaponKills[Player])
+	AddCounts(Player, "AbilityUses", AbilityUses[Player])
+end
 
 -- Works out what a player earned this run. Saved once, the numbers are
 -- kept for the end screen.
@@ -332,6 +418,9 @@ local function SavePlayer(Player: Player, Won: boolean)
 	if not Won then
 		Exp = math.floor(Exp * Settings.ExpLossMultiplier)
 	end
+	-- gear and passes from the lobby
+	Cash = math.floor(Cash * (RunStats.Value(Player, "CashMultiplier") or 1))
+	Exp = math.floor(Exp * (RunStats.Value(Player, "ExpMultiplier") or 1))
 	CashEarned[Player] = Cash
 	ExpEarned[Player] = Exp
 
@@ -352,6 +441,7 @@ local function SavePlayer(Player: Player, Won: boolean)
 	if Exp > 0 then
 		DataManager.Increment(Player, "XP", Exp)
 	end
+	SaveRunDetails(Player, Best)
 end
 
 local function SaveLifetimeStats(Won: boolean)
@@ -534,6 +624,7 @@ function RunManager.Reset()
 	Summary = nil
 	Kills = {}
 	BestIndex = {}
+	ClearRunCounts()
 	Saved = {}
 	CashEarned = {}
 	ExpEarned = {}
@@ -561,9 +652,14 @@ function RunManager.Init()
 	end)
 
 	local DamageService = require(script.Parent.Parent.Combat.DamageService)
-	DamageService.EnemyKilled.Event:Connect(function(Enemy, Killer)
+	DamageService.EnemyKilled.Event:Connect(function(Enemy, Killer, Reward, Source)
 		if Killer then
 			Kills[Killer] = (Kills[Killer] or 0) + 1
+			-- weapon hits are labelled "Sword MB1", so the first word is the weapon
+			local Weapon = type(Source) == "string" and string.match(Source, "^(%S+)")
+			if Weapon and WeaponData.Weapons[Weapon] then
+				CountUse(WeaponKills, Killer, Weapon)
+			end
 			-- Kills refuel abilities a little, so fighting keeps them
 			-- coming. A summon gives less, the same as its money.
 			local Stats = PlayerStats.Get(Killer)
@@ -571,6 +667,21 @@ function RunManager.Init()
 			if Stats and Stats:IsAlive() and Energy > 0 then
 				Stats:AddEnergy(Energy)
 			end
+		end
+	end)
+
+	local AbilityBase = require(script.Parent.Parent.Combat.Abilities.AbilityBase)
+	AbilityBase.Used.Event:Connect(function(Player, AbilityName)
+		if State == "Playing" then
+			CountUse(AbilityUses, Player, AbilityName)
+		end
+	end)
+
+	-- one parry per swing that sends at least one projectile back
+	local ProjectileService = require(script.Parent.Parent.Combat.ProjectileService)
+	ProjectileService.Deflected.Event:Connect(function(Owner)
+		if State == "Playing" and typeof(Owner) == "Instance" and Owner:IsA("Player") then
+			Parries[Owner] = (Parries[Owner] or 0) + 1
 		end
 	end)
 
@@ -612,6 +723,11 @@ function RunManager.Init()
 		Loadout.Remove(Player)
 		Kills[Player] = nil
 		BestIndex[Player] = nil
+		Deaths[Player] = nil
+		Parries[Player] = nil
+		WeaponKills[Player] = nil
+		AbilityUses[Player] = nil
+		JoinedAt[Player] = nil
 		-- The leaver may have been the last one alive, or the last one
 		-- keeping the others waiting.
 		task.defer(CheckAllDead)

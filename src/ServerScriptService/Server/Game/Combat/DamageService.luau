@@ -121,7 +121,8 @@ end)
 -- damage event, for anything that wants to react without being in
 -- the chain, such as a hit marker or the kill feed.
 DamageService.Damaged = Signal.new()
--- Fired with (Enemy, Killer, Reward) when an enemy dies to damage.
+-- Fired with (Enemy, Killer, Reward, Source) when an enemy dies to damage.
+-- Source is the hit's label, such as "Sword MB1".
 DamageService.EnemyKilled = Signal.new()
 
 ----------------------------------------------------------------------
@@ -414,7 +415,7 @@ function DamageService.ApplyDamage(Target: Model, BaseDamage: number, Attacker: 
 	if Killed and Enemy then
 		local Killer = AttackerPlayer
 		local Reward = PayReward(Enemy, Killer)
-		DamageService.EnemyKilled:Fire(Enemy, Killer, Reward)
+		DamageService.EnemyKilled:Fire(Enemy, Killer, Reward, Info.Source)
 	end
 
 	return Dealt, Killed

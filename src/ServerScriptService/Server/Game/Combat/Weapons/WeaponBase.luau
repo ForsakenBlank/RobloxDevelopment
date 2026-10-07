@@ -323,7 +323,7 @@ function WeaponBase:StartCooldown(Button: string): number
 	local PlayerStats = require(script.Parent.Parent.Parent.Core.PlayerStats)
 	local Stats = PlayerStats.Get(self.Player)
 	if Stats then
-		Multiplier = Stats:GetCooldownMultiplier()
+		Multiplier = Stats:GetCooldownMultiplier("Weapon")
 	end
 
 	local Length

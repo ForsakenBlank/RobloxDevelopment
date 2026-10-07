@@ -30,6 +30,7 @@
 	        Version = 1,
 	        Source = "Lobby",
 	        Difficulty = "Normal",            -- a key in DifficultyConfig
+	        Map = "VeloCITY",                  -- which map, for MapBest and MapRuns
 	        PartySize = #PartyPlayers,         -- how many are coming
 	        PartyUserIds = { 111, 222 },       -- who is coming
 	        LobbyPlaceId = game.PlaceId,       -- where to send them back
@@ -128,6 +129,11 @@ local function Clean(Raw: any)
 
 	if type(Raw.Difficulty) == "string" and DifficultyConfig.Difficulties[Raw.Difficulty] then
 		Data.Difficulty = Raw.Difficulty
+	end
+
+	-- only used to file the end of run stats under the right map
+	if type(Raw.Map) == "string" and #Raw.Map > 0 and #Raw.Map <= 40 then
+		Data.Map = Raw.Map
 	end
 
 	if type(Raw.PartySize) == "number" and Raw.PartySize == Raw.PartySize then

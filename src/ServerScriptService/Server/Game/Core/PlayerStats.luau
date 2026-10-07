@@ -501,11 +501,21 @@ function PlayerStats:SetCooldownMultiplier(Key: string, Multiplier: number?)
 	self.CooldownMultipliers[Key] = Multiplier
 end
 
--- The multiplier on new cooldowns, 1 if none.
-function PlayerStats:GetCooldownMultiplier(): number
+-- sets the gear's cooldown multipliers, kept apart for weapons and abilities and stacked on top of the buffs above
+function PlayerStats:SetGearCooldownMultipliers(Weapon: number?, Ability: number?)
+	self.GearCooldownMultipliers = { Weapon = Weapon or 1, Ability = Ability or 1 }
+end
+
+-- The multiplier on new cooldowns, 1 if none. Kind is "Weapon" or
+-- "Ability" and adds the gear's multiplier for that kind.
+function PlayerStats:GetCooldownMultiplier(Kind: string?): number
 	local Best = 1
 	for _, Multiplier in pairs(self.CooldownMultipliers or {}) do
 		Best = math.min(Best, Multiplier)
+	end
+	local Gear = self.GearCooldownMultipliers
+	if Gear and Kind and Gear[Kind] then
+		Best *= Gear[Kind]
 	end
 	return Best
 end

@@ -11,7 +11,7 @@ Steps marked **(needs lobby files)** copy code from the lobby place, which is no
 - [ ] 1.4 Later, in both places at once: session locked saves (ProfileStore or `UpdateAsync` with a lock)
 
 ## 2. One save template
-- [ ] 2.1 Copy the lobby's `PlayerDataTemplate` over the game's so both have the same keys **(needs lobby files)**
+- [ ] 2.1 Copy the lobby's `PlayerDataTemplate` over the game's so both have the same keys. The stat keys from section 8 are already added **(needs lobby files)**
 
 ## 3. Shared modules (copy whole from the lobby) **(needs lobby files)**
 - [ ] 3.1 `GameText` (with all children) and `UIIcons`
@@ -25,19 +25,19 @@ Steps marked **(needs lobby files)** copy code from the lobby place, which is no
 - [ ] 3.9 Give the shared modules one folder in the Rojo project so both places sync from it
 
 ## 4. Gear and core stats in a run
-- [ ] 4.1 `RunStats(Player)` helper on the server using `CharacterStats.Compute` and `ForRun`
-- [ ] 4.2 `MaxHealth`, `MaxEnergy` into `PlayerStats.new` overrides in `RunSetup`
+- [x] 4.1 `Server.Game.Core.RunStats` uses `CharacterStats.Compute` and `ForRun`, and gives neutral numbers until CharacterStats is copied in. Passes are always empty for now
+- [x] 4.2 `MaxHealth`, `MaxEnergy` into `PlayerStats.new` overrides in `RunSetup`
 - [ ] 4.3 Health and energy regen per player in `EnergyService` (plus Ruby's no regen in combat)
 - [ ] 4.4 Weapon and ability damage multipliers in `DamageService`
 - [ ] 4.5 Crits in `DamageService`
 - [ ] 4.6 Damage taken multipliers (overall and melee, fire, magic)
 - [ ] 4.7 Knockback multiplier and ignore knockback chance
-- [ ] 4.8 Split cooldown multiplier into weapon and ability
-- [ ] 4.9 `SpeedMultiplier` through `SetSpeedMultiplier("Gear", ...)`
-- [ ] 4.10 `Lifesteal` through `SetLifesteal("Gear", ...)`
+- [x] 4.8 Split cooldown multiplier into weapon and ability
+- [x] 4.9 `SpeedMultiplier` through `SetSpeedMultiplier("Gear", ...)`
+- [x] 4.10 `Lifesteal` through `SetLifesteal("Gear", ...)`
 - [ ] 4.11 `HealingMultiplier` on Heal Burst
 - [ ] 4.12 `CoinMultiplier` on kill money
-- [ ] 4.13 `ExpMultiplier`, `CashMultiplier` at the end of a run
+- [x] 4.13 `ExpMultiplier`, `CashMultiplier` at the end of a run
 
 ## 5. Keys in the game
 - [ ] 5.1 Load `Keybinds` on the client from `DataUpdated` (first listener)
@@ -55,14 +55,14 @@ Steps marked **(needs lobby files)** copy code from the lobby place, which is no
 - [ ] 6.3 Tell the player (toast or results screen)
 
 ## 7. Teleport data
-- [ ] 7.1 Check `TeleportDataReader` against the lobby's payload (no `Armor` or `Accessories`, gear comes from the save)
+- [x] 7.1 `TeleportDataReader` now also reads `Map` (falls back to `GameConfig.Run.DefaultMap`). Check the lobby sends the same map names
 - [x] 7.2 Game to lobby payload carries `SaveVersion` (same as 1.2)
 
 ## 8. End of a run
-- [ ] 8.1 `Deaths`, `Parries`, `PerfectParries`
-- [ ] 8.2 `MapBest[Map][Difficulty]`, `MapRuns[Map]`
-- [ ] 8.3 `CoreTime`, `CoreRuns`, `Cores[Core]`
-- [ ] 8.4 `WeaponKills`, `AbilityUses`
+- [x] 8.1 `Deaths`, `Parries` (one per Sword swing that deflects something). `PerfectParries` waits until the game has a parry window
+- [x] 8.2 `MapBest[Map][Difficulty]`, `MapRuns[Map]`
+- [x] 8.3 `CoreTime`, `CoreRuns` (only once the save has `Core`, from the lobby template). `Cores[Core]` Enlightenment still to do, needs CoreData
+- [x] 8.4 `WeaponKills`, `AbilityUses`
 - [ ] 8.5 `PlayTime` and Timebux for time in the game place
 - [ ] 8.6 `OwnedSkins.Noob` / `OwnedSkins.Guest` for beating the Guest in Retroscity
 

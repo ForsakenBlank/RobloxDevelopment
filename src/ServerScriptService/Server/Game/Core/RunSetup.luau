@@ -74,6 +74,7 @@ local AbilityData = require(ReplicatedStorage.Modules.Game.Data.AbilityData)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Loadout = require(script.Parent.Loadout)
 local TeleportDataReader = require(script.Parent.TeleportDataReader)
+local RunStats = require(script.Parent.RunStats)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local RunStateChanged = Remotes.Events:WaitForChild("RunStateChanged")
@@ -130,9 +131,9 @@ function RunSetup.SetupPlayer(Player: Player)
 		RunSetup.ApplyTeleportLoadout(Player)
 	end
 
-	-- Permanent upgrades from the lobby would come out of the save
-	-- here and go in as overrides. There are none yet.
-	PlayerStats.new(Player, nil)
+	-- gear, core and passes from the save, through the lobby's CharacterStats
+	RunStats.Compute(Player)
+	RunStats.Apply(Player, PlayerStats.new(Player, RunStats.Overrides(Player)))
 
 	-- The two weapons and two abilities from the player's save.
 	Loadout.new(Player)
@@ -148,7 +149,7 @@ function RunSetup.ResetPlayer(Player: Player)
 	if Player.Parent ~= Players then
 		return
 	end
-	PlayerStats.new(Player, nil)
+	RunStats.Apply(Player, PlayerStats.new(Player, RunStats.Overrides(Player)))
 	Loadout.new(Player)
 end
 

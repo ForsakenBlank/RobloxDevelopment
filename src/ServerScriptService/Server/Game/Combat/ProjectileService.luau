@@ -74,8 +74,12 @@ local CombatFX = require(ReplicatedStorage.Modules.Game.Shared.CombatFX)
 local StatFormulas = require(ReplicatedStorage.Modules.Game.Shared.StatFormulas)
 local HitDetection = require(script.Parent.HitDetection)
 local DamageService = require(script.Parent.DamageService)
+local Signal = require(ReplicatedStorage.Modules.Game.Shared.Signal)
 
 local ProjectileService = {}
+
+-- fired with (Owner, Count) when a deflect catches at least one projectile, RunManager counts these as Parries
+ProjectileService.Deflected = Signal.new()
 
 ----------------------------------------------------------------------
 -- SETTINGS
@@ -497,6 +501,9 @@ function ProjectileService.Deflect(Options): number
 				Lifetime = Projectile.DiesAt - os.clock(),
 			})
 		end
+	end
+	if Count > 0 then
+		ProjectileService.Deflected:Fire(Owner, Count)
 	end
 	return Count
 end
